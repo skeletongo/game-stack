@@ -49,3 +49,10 @@ func (s *memoryStore) GetPlayerByName(_ context.Context, name string) (*Player, 
 	}
 	return nil, fmt.Errorf("player %s not found", name)
 }
+
+func (s *memoryStore) RemovePlayer(_ context.Context, id int64) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	delete(s.players, id)
+	return nil
+}

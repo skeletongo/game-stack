@@ -24,4 +24,6 @@ type Store interface {
 	EquipItem(ctx context.Context, uid int64, itemID int64) error
 	UnequipItem(ctx context.Context, uid int64, itemID int64) error
 	GetBagSize(ctx context.Context, uid int64) (int32, error)
+	// RemovePlayerBag 删除玩家背包数据（断线清理用）。
+	RemovePlayerBag(ctx context.Context, uid int64) error
 }

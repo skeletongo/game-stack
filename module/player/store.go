@@ -21,4 +21,6 @@ type Store interface {
 	GetPlayer(ctx context.Context, id int64) (*Player, error)
 	UpdatePlayer(ctx context.Context, player *Player) error
 	GetPlayerByName(ctx context.Context, name string) (*Player, error)
+	// RemovePlayer 删除玩家内存数据（断线清理用）。
+	RemovePlayer(ctx context.Context, id int64) error
 }

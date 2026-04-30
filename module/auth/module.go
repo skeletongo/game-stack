@@ -1,6 +1,8 @@
 package auth
 
 import (
+	"time"
+
 	"github.com/dobyte/due/v2/cluster"
 	"github.com/dobyte/due/v2/cluster/node"
 	"github.com/dobyte/due/v2/log"
@@ -11,7 +13,6 @@ import (
 const name = "auth"
 
 // Module 创建认证模块。
-// 这是 game-stack 的规范模块实现模板。
 func Module(opts ...Option) stack.Module {
 	return &authModule{opts: opts}
 }
@@ -28,7 +29,11 @@ func (m *authModule) Init(proxy *node.Proxy) error {
 		opt(o)
 	}
 
-	impl := newImpl(o.store)
+	// 创建玩家断线延迟清理器（30 秒 Grace Period）
+	cleaner := stack.NewPlayerDoneCleaner(proxy, 30*time.Second)
+	stack.RegisterService("cleaner", cleaner)
+
+	impl := newImpl(o.store, cleaner)
 
 	// 注册路由（无需授权的路由不传 RouteOptions）
 	proxy.AddRouteHandler(stack.RouteAuthLogin, impl.handleLogin)

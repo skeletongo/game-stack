@@ -35,6 +35,11 @@ func (m *playerModule) Init(proxy *node.Proxy) error {
 	proxy.AddRouteHandler(stack.RoutePlayerSearch, impl.handleSearch, stack.StatefulAuthorizedRoute)
 	proxy.AddRouteHandler(stack.RoutePlayerSetAvatar, impl.handleSetAvatar, stack.StatefulAuthorizedRoute)
 
+	// 注册到延迟清理器（断线 30 秒后清除玩家内存数据）
+	if c, ok := stack.GetService("cleaner").(*stack.PlayerDoneCleaner); ok {
+		c.Register(impl.svc)
+	}
+
 	// 注册服务供其他模块使用
 	stack.RegisterService(name, impl.svc)
 

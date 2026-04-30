@@ -35,6 +35,10 @@ func (m *inventoryModule) Init(proxy *node.Proxy) error {
 	proxy.AddRouteHandler(stack.RouteInvDrop, impl.handleDrop, stack.StatefulAuthorizedRoute)
 	proxy.AddRouteHandler(stack.RouteInvSell, impl.handleSell, stack.StatefulAuthorizedRoute)
 
+	if c, ok := stack.GetService("cleaner").(*stack.PlayerDoneCleaner); ok {
+		c.Register(impl.svc)
+	}
+
 	stack.RegisterService(name, impl.svc)
 
 	log.Infof("[inventory] module initialized")

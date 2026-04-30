@@ -32,4 +32,6 @@ type Store interface {
 	AcceptQuest(ctx context.Context, uid int64, questID int32) error
 	SubmitQuest(ctx context.Context, uid int64, questID int32) error
 	UpdateProgress(ctx context.Context, uid int64, questID int32, progress int32) error
+	// RemovePlayerQuests 删除玩家任务数据（断线清理用）。
+	RemovePlayerQuests(ctx context.Context, uid int64) error
 }

@@ -12,11 +12,12 @@ import (
 )
 
 type impl struct {
-	svc *service
+	svc     *service
+	cleaner *stack.PlayerDoneCleaner
 }
 
-func newImpl(store Store) *impl {
-	return &impl{svc: newService(store)}
+func newImpl(store Store, cleaner *stack.PlayerDoneCleaner) *impl {
+	return &impl{svc: newService(store), cleaner: cleaner}
 }
 
 func (i *impl) handleLogin(ctx node.Context) {
@@ -66,6 +67,8 @@ func (i *impl) handleLogin(ctx node.Context) {
 		stack.RespondError(ctx, stack.ErrInternalError)
 		return
 	}
+
+	i.cleaner.OnLogin(user.ID)
 
 	stack.RespondData(ctx, &auth.LoginResponse{
 		Token:       token,
@@ -130,6 +133,8 @@ func (i *impl) handleRegister(ctx node.Context) {
 		return
 	}
 
+	i.cleaner.OnLogin(user.ID)
+
 	stack.RespondData(ctx, &auth.RegisterResponse{
 		Token:    token,
 		PlayerID: user.ID,
@@ -168,15 +173,24 @@ func (i *impl) handleRefresh(ctx node.Context) {
 
 // handleConnect 连接事件处理器，不可调用 ctx.Response。
 func (i *impl) handleConnect(ctx node.Context) {
-	log.Infof("[auth] player connected: uid=%d cid=%d gid=%s", ctx.UID(), ctx.CID(), ctx.GID())
+	uid := ctx.UID()
+	log.Infof("[auth] player connected: uid=%d cid=%d gid=%s", uid, ctx.CID(), ctx.GID())
+	// 玩家可能刚从其他节点断线重连过来，本节点无历史数据，忽略
+	_ = uid
 }
 
 // handleDisconnect 断开事件处理器，不可调用 ctx.Response。
+// 立即操作：清除 token 和解除节点绑定（安全相关）
+// 延迟操作：启动 Grace Period 后清理玩家内存数据
 func (i *impl) handleDisconnect(ctx node.Context) {
 	uid := ctx.UID()
 	if uid != 0 {
+		// 立即：安全清理
 		_ = i.svc.store.DeleteToken(context.Background(), uid)
 		_ = i.svc.store.SetOffline(context.Background(), uid)
+		_ = ctx.UnbindNode(uid)
+		// 延迟：30 秒后清理内存数据（等待玩家可能的重连）
+		i.cleaner.OnDisconnect(uid)
 	}
 	log.Infof("[auth] player disconnected: uid=%d cid=%d", uid, ctx.CID())
 }

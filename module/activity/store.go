@@ -21,4 +21,6 @@ type Store interface {
 	ListActivities(ctx context.Context, aType int32) ([]*ActivityInfo, error)
 	ClaimReward(ctx context.Context, uid int64, activityID int32) error
 	UpdateProgress(ctx context.Context, uid int64, activityID int32, progress int32) error
+	// RemovePlayerClaims 删除玩家活动领取记录（断线清理用）。
+	RemovePlayerClaims(ctx context.Context, uid int64) error
 }

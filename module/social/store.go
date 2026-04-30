@@ -19,4 +19,6 @@ type Store interface {
 	BlockUser(ctx context.Context, uid int64, targetID int64) error
 	UnblockUser(ctx context.Context, uid int64, targetID int64) error
 	ListBlacklist(ctx context.Context, uid int64, page, pageSize int32) ([]*FriendInfo, int32, error)
+	// RemovePlayerData 删除玩家社交数据（断线清理用）。
+	RemovePlayerData(ctx context.Context, uid int64) error
 }

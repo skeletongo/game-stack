@@ -32,6 +32,10 @@ func (m *questModule) Init(proxy *node.Proxy) error {
 	proxy.AddRouteHandler(stack.RouteQuestSubmit, impl.handleSubmit, stack.StatefulAuthorizedRoute)
 	proxy.AddRouteHandler(stack.RouteQuestAbandon, impl.handleAbandon, stack.StatefulAuthorizedRoute)
 
+	if c, ok := stack.GetService("cleaner").(*stack.PlayerDoneCleaner); ok {
+		c.Register(impl.svc)
+	}
+
 	stack.RegisterService(name, impl.svc)
 
 	log.Infof("[quest] module initialized")

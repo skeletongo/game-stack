@@ -105,3 +105,10 @@ func (s *memoryStore) GetBagSize(_ context.Context, uid int64) (int32, error) {
 	s.ensureBag(uid)
 	return int32(len(s.bags[uid])), nil
 }
+
+func (s *memoryStore) RemovePlayerBag(_ context.Context, uid int64) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	delete(s.bags, uid)
+	return nil
+}

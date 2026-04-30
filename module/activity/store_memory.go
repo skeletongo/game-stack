@@ -55,3 +55,15 @@ func (s *memoryStore) ClaimReward(_ context.Context, uid int64, activityID int32
 func (s *memoryStore) UpdateProgress(_ context.Context, uid int64, activityID int32, progress int32) error {
 	return nil
 }
+
+func (s *memoryStore) RemovePlayerClaims(_ context.Context, uid int64) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	prefix := fmt.Sprintf("%d_", uid)
+	for k := range s.claims {
+		if len(k) > len(prefix) && k[:len(prefix)] == prefix {
+			delete(s.claims, k)
+		}
+	}
+	return nil
+}

@@ -31,6 +31,10 @@ func (m *combatModule) Init(proxy *node.Proxy) error {
 	proxy.AddRouteHandler(stack.RouteCombatMove, impl.handleMove, stack.StatefulAuthorizedRoute)
 	proxy.AddRouteHandler(stack.RouteCombatTarget, impl.handleTarget, stack.StatefulAuthorizedRoute)
 
+	if c, ok := stack.GetService("cleaner").(*stack.PlayerDoneCleaner); ok {
+		c.Register(impl.svc)
+	}
+
 	stack.RegisterService(name, impl.svc)
 
 	log.Infof("[combat] module initialized")

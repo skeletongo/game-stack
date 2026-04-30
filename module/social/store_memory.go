@@ -91,6 +91,14 @@ func (s *memoryStore) UnblockUser(_ context.Context, uid int64, targetID int64) 
 	return nil
 }
 
+func (s *memoryStore) RemovePlayerData(_ context.Context, uid int64) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	delete(s.friends, uid)
+	delete(s.blacklist, uid)
+	return nil
+}
+
 func (s *memoryStore) ListBlacklist(_ context.Context, uid int64, page, pageSize int32) ([]*FriendInfo, int32, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()

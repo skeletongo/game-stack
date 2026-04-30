@@ -1,5 +1,7 @@
 package quest
 
+import "context"
+
 type Service interface {
 	CheckLevelQuests(uid int64) error
 }
@@ -14,6 +16,10 @@ func newService(store Store) *service {
 
 func (s *service) CheckLevelQuests(uid int64) error {
 	return nil
+}
+
+func (s *service) CleanPlayerData(uid int64) {
+	_ = s.store.RemovePlayerQuests(context.Background(), uid)
 }
 
 // nextQuestID for simple ID generation.

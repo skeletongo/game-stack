@@ -66,6 +66,13 @@ func (s *memoryStore) AddBuff(_ context.Context, uid int64, buff *Buff) error {
 	return nil
 }
 
+func (s *memoryStore) RemoveCombatState(_ context.Context, uid int64) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	delete(s.states, uid)
+	return nil
+}
+
 func (s *memoryStore) RemoveBuff(_ context.Context, uid int64, buffID int32) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()

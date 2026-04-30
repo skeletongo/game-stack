@@ -22,3 +22,7 @@ func (s *service) IsFriend(uid, targetID int64) bool {
 	}
 	return false
 }
+
+func (s *service) CleanPlayerData(uid int64) {
+	_ = s.store.RemovePlayerData(context.Background(), uid)
+}

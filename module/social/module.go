@@ -34,6 +34,10 @@ func (m *socialModule) Init(proxy *node.Proxy) error {
 	proxy.AddRouteHandler(stack.RouteSocialUnblock, impl.handleUnblock, stack.StatefulAuthorizedRoute)
 	proxy.AddRouteHandler(stack.RouteSocialBlacklist, impl.handleBlacklist, stack.StatefulAuthorizedRoute)
 
+	if c, ok := stack.GetService("cleaner").(*stack.PlayerDoneCleaner); ok {
+		c.Register(impl.svc)
+	}
+
 	stack.RegisterService(name, impl.svc)
 
 	log.Infof("[social] module initialized")

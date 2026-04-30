@@ -102,3 +102,10 @@ func (s *memoryStore) UpdateProgress(_ context.Context, uid int64, questID int32
 	q.Progress = progress
 	return nil
 }
+
+func (s *memoryStore) RemovePlayerQuests(_ context.Context, uid int64) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	delete(s.playerQuests, uid)
+	return nil
+}

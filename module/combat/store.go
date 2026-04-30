@@ -36,4 +36,6 @@ type Store interface {
 	UpdateMP(ctx context.Context, uid int64, delta int32) (int32, error)
 	AddBuff(ctx context.Context, uid int64, buff *Buff) error
 	RemoveBuff(ctx context.Context, uid int64, buffID int32) error
+	// RemoveCombatState 删除玩家战斗状态（断线清理用）。
+	RemoveCombatState(ctx context.Context, uid int64) error
 }
