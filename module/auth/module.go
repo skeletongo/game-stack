@@ -33,7 +33,7 @@ func (m *authModule) Init(proxy *node.Proxy) error {
 	cleaner := stack.NewPlayerDoneCleaner(proxy, 30*time.Second)
 	stack.RegisterService("cleaner", cleaner)
 
-	impl := newImpl(o.store, cleaner)
+	impl := newImpl(o.store, cleaner, proxy)
 
 	// 注册路由（无需授权的路由不传 RouteOptions）
 	proxy.AddRouteHandler(stack.RouteAuthLogin, impl.handleLogin)

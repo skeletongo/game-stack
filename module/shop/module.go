@@ -4,6 +4,7 @@ import (
 	"github.com/dobyte/due/v2/cluster/node"
 	"github.com/dobyte/due/v2/log"
 
+	"github.com/skeletongo/game-stack/module/actor"
 	"github.com/skeletongo/game-stack/stack"
 )
 
@@ -27,10 +28,24 @@ func (m *shopModule) Init(proxy *node.Proxy) error {
 
 	impl := newImpl(o.store)
 
-	// ShopList 无需有状态（商品列表全局共享），仅需授权
+	// ShopList — 全局数据，无状态路由，仅需授权
 	proxy.AddRouteHandler(stack.RouteShopList, impl.handleList, node.AuthorizedRoute)
-	// ShopBuy 必须有状态（购买需要扣减玩家金币，必须路由到玩家所在节点）
-	proxy.AddRouteHandler(stack.RouteShopBuy, impl.handleBuy, stack.StatefulAuthorizedRoute)
+
+	// ShopBuy — 使用 RouteToActor（模式2）：
+	//   ① Node 路由处理器将消息投递到 PlayerActor 的 mailbox
+	//   ② PlayerActor 的 dispatch goroutine 串行处理
+	//   ③ ctx.Response() 在 Actor 中同步返回结果
+	proxy.AddRouteHandler(stack.RouteShopBuy,
+		actor.RouteToActor(actor.KindPlayer),
+		stack.StatefulAuthorizedRoute,
+	)
+
+	// 注册 Actor 路由初始化器：当 PlayerActor 被 Spawn 时，
+	// 自动为 Actor 注册 ShopBuy 的实际处理器
+	actor.RegisterRouteInitializer(func(act *node.Actor) {
+		act.AddRouteHandler(stack.RouteShopBuy, impl.handleBuyActor)
+		log.Debugf("[shop] registered actor route: ShopBuy")
+	})
 
 	stack.RegisterService(name, impl.svc)
 

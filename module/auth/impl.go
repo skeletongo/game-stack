@@ -7,6 +7,7 @@ import (
 	"github.com/dobyte/due/v2/cluster/node"
 	"github.com/dobyte/due/v2/log"
 
+	"github.com/skeletongo/game-stack/module/actor"
 	"github.com/skeletongo/game-stack/protocol/auth"
 	"github.com/skeletongo/game-stack/stack"
 )
@@ -14,10 +15,11 @@ import (
 type impl struct {
 	svc     *service
 	cleaner *stack.PlayerDoneCleaner
+	proxy   *node.Proxy
 }
 
-func newImpl(store Store, cleaner *stack.PlayerDoneCleaner) *impl {
-	return &impl{svc: newService(store), cleaner: cleaner}
+func newImpl(store Store, cleaner *stack.PlayerDoneCleaner, proxy *node.Proxy) *impl {
+	return &impl{svc: newService(store), cleaner: cleaner, proxy: proxy}
 }
 
 func (i *impl) handleLogin(ctx node.Context) {
@@ -69,6 +71,11 @@ func (i *impl) handleLogin(ctx node.Context) {
 	}
 
 	i.cleaner.OnLogin(user.ID)
+
+	// 创建玩家 Actor，后续所有状态修改通过 actor.Invoke() 串行化
+	if _, err := actor.SpawnPlayer(i.proxy, user.ID); err != nil {
+		log.Errorf("spawn player actor failed: %v", err)
+	}
 
 	stack.RespondData(ctx, &auth.LoginResponse{
 		Token:       token,
@@ -135,6 +142,10 @@ func (i *impl) handleRegister(ctx node.Context) {
 
 	i.cleaner.OnLogin(user.ID)
 
+	if _, err := actor.SpawnPlayer(i.proxy, user.ID); err != nil {
+		log.Errorf("spawn player actor failed: %v", err)
+	}
+
 	stack.RespondData(ctx, &auth.RegisterResponse{
 		Token:    token,
 		PlayerID: user.ID,
@@ -189,6 +200,8 @@ func (i *impl) handleDisconnect(ctx node.Context) {
 		_ = i.svc.store.DeleteToken(context.Background(), uid)
 		_ = i.svc.store.SetOffline(context.Background(), uid)
 		_ = ctx.UnbindNode(uid)
+		// 立即杀死 Actor：关闭 mailbox，丢弃所有待处理消息
+		actor.KillPlayer(i.proxy, uid)
 		// 延迟：30 秒后清理内存数据（等待玩家可能的重连）
 		i.cleaner.OnDisconnect(uid)
 	}
