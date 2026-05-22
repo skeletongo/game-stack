@@ -93,8 +93,8 @@ func (s *service) DeductDiamond(id int64, diamond int32) error {
 }
 
 // CleanPlayerData 清理玩家内存数据（断线时调用）。
-func (s *service) CleanPlayerData(uid int64) {
-	_ = s.store.RemovePlayer(context.Background(), uid)
+func (s *service) CleanPlayerData(uid int64) error {
+	return s.store.RemovePlayer(context.Background(), uid)
 }
 
 // calcLevel 根据总经验值计算等级。

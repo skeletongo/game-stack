@@ -20,6 +20,7 @@
 package actor
 
 import (
+	"context"
 	"strconv"
 	"sync"
 
@@ -109,13 +110,26 @@ func Get(proxy *node.Proxy, uid int64) *node.Actor {
 
 // Invoke 向玩家 Actor 投递函数，在 Actor goroutine 中串行执行。
 // Actor 不存在时静默丢弃（玩家已断线）。
+// Actor 存在但归属权不属于本节点时，杀死残留 Actor 并丢弃。
 func Invoke(proxy *node.Proxy, uid int64, fn func()) {
+	// 防御性检查：玩家是否仍绑定在本节点
+	if nid, err := proxy.LocateNode(context.Background(), uid, proxy.GetName()); err == nil && nid != "" && nid != proxy.GetID() {
+		log.Warnf("[actor] invoke dropped, ownership lost: uid=%d bound_nid=%s my_nid=%s", uid, nid, proxy.GetID())
+		KillPlayer(proxy, uid)
+		return
+	}
+
 	if act := Get(proxy, uid); act != nil {
 		act.Invoke(fn)
 	}
 }
 
 // RouteToActor 返回一个 Node 路由处理器，将消息投递到 Actor mailbox 串行处理。
+//
+// 在投递前校验玩家归属权：如果玩家已绑定到其他节点（Disconnect 事件丢失的场景），
+// 立即杀死本地残留 Actor，返回错误。这提供了一个不依赖 Disconnect 事件、
+// 不依赖 Redis Pub/Sub 的兜底安全网。
+//
 // 配合 StatefulAuthorizedRoute，消息先路由到玩家节点，再投递到 Actor。
 // ctx.Response() 会在 Actor 的 dispatch goroutine 中执行。
 //
@@ -128,7 +142,22 @@ func RouteToActor(kind string) node.RouteHandler {
 			stack.RespondError(ctx, stack.ErrUnauthorized)
 			return
 		}
-		act, ok := ctx.Proxy().Actor(kind, strconv.FormatInt(uid, 10))
+
+		proxy := ctx.Proxy()
+		id := strconv.FormatInt(uid, 10)
+
+		// 防御性检查：玩家是否仍绑定在本节点
+		// 场景：disconnect 事件丢失、Pub/Sub 延迟 → 旧节点 Actor 残留
+		// LocateNode 优先读本地缓存（毫秒级），缓存命中且玩家已迁移时能立即发现
+		if nid, err := proxy.LocateNode(context.Background(), uid, proxy.GetName()); err == nil && nid != "" && nid != proxy.GetID() {
+			log.Warnf("[actor] ownership lost, killing stale actor: uid=%d bound_nid=%s my_nid=%s", uid, nid, proxy.GetID())
+			proxy.UnbindActor(uid, kind)
+			proxy.Kill(kind, id)
+			stack.RespondError(ctx, stack.ErrPlayerNotFound)
+			return
+		}
+
+		act, ok := proxy.Actor(kind, id)
 		if !ok {
 			stack.RespondError(ctx, stack.ErrPlayerNotFound)
 			return

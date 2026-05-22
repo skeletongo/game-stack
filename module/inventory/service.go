@@ -44,6 +44,6 @@ func (s *service) GetItemCount(uid int64, itemID int64) int32 {
 	return 0
 }
 
-func (s *service) CleanPlayerData(uid int64) {
-	_ = s.store.RemovePlayerBag(context.Background(), uid)
+func (s *service) CleanPlayerData(uid int64) error {
+	return s.store.RemovePlayerBag(context.Background(), uid)
 }

@@ -35,6 +35,6 @@ func (s *service) CalcDamage(attackerID, targetID int64, skillID int32) (int32, 
 	return 0, false, nil
 }
 
-func (s *service) CleanPlayerData(uid int64) {
-	_ = s.store.RemoveCombatState(context.Background(), uid)
+func (s *service) CleanPlayerData(uid int64) error {
+	return s.store.RemoveCombatState(context.Background(), uid)
 }

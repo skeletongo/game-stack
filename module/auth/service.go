@@ -6,6 +6,8 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"sync"
+
+	"github.com/skeletongo/game-stack/stack"
 )
 
 // Service 认证模块对外的服务接口。
@@ -20,6 +22,9 @@ type Service interface {
 	// KickPlayer 强制踢下线。
 	KickPlayer(uid int64) error
 }
+
+// 确保 service 实现 stack.CleanableService
+var _ stack.CleanableService = (*service)(nil)
 
 type service struct {
 	store Store
@@ -55,6 +60,11 @@ func (s *service) IsOnline(uid int64) bool {
 }
 
 func (s *service) KickPlayer(uid int64) error {
+	return s.store.DeleteToken(context.Background(), uid)
+}
+
+// CleanPlayerData 实现 stack.CleanableService，Grace Period 到期后清理 token。
+func (s *service) CleanPlayerData(uid int64) error {
 	return s.store.DeleteToken(context.Background(), uid)
 }
 

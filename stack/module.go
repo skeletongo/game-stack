@@ -16,10 +16,10 @@ type Module interface {
 // CleanableService 是模块 Service 可选实现的接口。
 // 实现了此接口的模块，会在玩家断线时被调用以清理该玩家的内存数据。
 //
-// 这保证了：玩家在新节点登录前，旧节点上的数据已被清除。
-// 配合 StatefulRoute，断线事件自动路由到玩家绑定的节点。
+// CleanPlayerData 会重试直到成功（最多 maxRetries 次），
+// 全部成功后才会解除节点绑定，防止清理失败导致数据丢失。
 type CleanableService interface {
-	CleanPlayerData(uid int64)
+	CleanPlayerData(uid int64) error
 }
 
 // 类型断言辅助

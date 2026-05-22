@@ -64,18 +64,36 @@ func (i *impl) handleLogin(ctx node.Context) {
 		return
 	}
 
-	if err := ctx.BindNode(user.ID); err != nil {
-		log.Errorf("bind node failed: %v", err)
+	// 检查玩家是否已有节点绑定（断线重连场景）
+	boundNid, err := i.proxy.LocateNode(context.Background(), user.ID, i.proxy.GetName())
+	if err != nil {
+		log.Errorf("locate node failed: %v", err)
 		stack.RespondError(ctx, stack.ErrInternalError)
 		return
 	}
+	isReconnect := boundNid != ""
 
-	i.cleaner.OnLogin(user.ID)
-
-	// 创建玩家 Actor，后续所有状态修改通过 actor.Invoke() 串行化
-	if _, err := actor.SpawnPlayer(i.proxy, user.ID); err != nil {
-		log.Errorf("spawn player actor failed: %v", err)
+	if !isReconnect {
+		// 首次登录：绑定当前节点
+		if err := ctx.BindNode(user.ID); err != nil {
+			log.Errorf("bind node failed: %v", err)
+			stack.RespondError(ctx, stack.ErrInternalError)
+			return
+		}
+		i.cleaner.OnLogin(user.ID)
+		if _, err := actor.SpawnPlayer(i.proxy, user.ID); err != nil {
+			log.Errorf("spawn player actor failed: %v", err)
+		}
+	} else if boundNid == i.proxy.GetID() {
+		// 重连回到原节点：取消清理 + 恢复 Actor
+		i.cleaner.OnLogin(user.ID)
+		if act := actor.Get(i.proxy, user.ID); act == nil {
+			if _, err := actor.SpawnPlayer(i.proxy, user.ID); err != nil {
+				log.Errorf("re-spawn actor failed: uid=%d err=%v", user.ID, err)
+			}
+		}
 	}
+	// 重连且绑定在其他节点：不操作，旧节点通过 cluster.Connect 事件处理后续
 
 	stack.RespondData(ctx, &auth.LoginResponse{
 		Token:       token,
@@ -183,26 +201,39 @@ func (i *impl) handleRefresh(ctx node.Context) {
 }
 
 // handleConnect 连接事件处理器，不可调用 ctx.Response。
+// cluster.Connect 为全集群广播，旧节点收到后取消延迟清理、恢复 Actor。
 func (i *impl) handleConnect(ctx node.Context) {
 	uid := ctx.UID()
+	if uid == 0 {
+		return
+	}
 	log.Infof("[auth] player connected: uid=%d cid=%d gid=%s", uid, ctx.CID(), ctx.GID())
-	// 玩家可能刚从其他节点断线重连过来，本节点无历史数据，忽略
-	_ = uid
+
+	// 取消延迟清理（如果有待处理的 cleaner 定时器）
+	i.cleaner.OnLogin(uid)
+
+	// 如果 Actor 已被杀死（断线场景），重新创建
+	if act := actor.Get(i.proxy, uid); act == nil {
+		if _, err := actor.SpawnPlayer(i.proxy, uid); err != nil {
+			log.Errorf("[auth] re-spawn actor on connect failed: uid=%d err=%v", uid, err)
+		} else {
+			log.Infof("[auth] actor re-spawned on reconnect: uid=%d", uid)
+		}
+	}
 }
 
 // handleDisconnect 断开事件处理器，不可调用 ctx.Response。
-// 立即操作：清除 token 和解除节点绑定（安全相关）
-// 延迟操作：启动 Grace Period 后清理玩家内存数据
+//
+// 两阶段清理策略：
+//   - 立即：杀 Actor（关闭 mailbox，丢弃排队消息）
+//   - 延迟（30s Grace Period）：清除 token + 解绑节点 + 清理模块数据
+//
+// Grace Period 期间保留 token 和节点绑定，玩家重连可无缝恢复。
 func (i *impl) handleDisconnect(ctx node.Context) {
 	uid := ctx.UID()
 	if uid != 0 {
-		// 立即：安全清理
-		_ = i.svc.store.DeleteToken(context.Background(), uid)
 		_ = i.svc.store.SetOffline(context.Background(), uid)
-		_ = ctx.UnbindNode(uid)
-		// 立即杀死 Actor：关闭 mailbox，丢弃所有待处理消息
 		actor.KillPlayer(i.proxy, uid)
-		// 延迟：30 秒后清理内存数据（等待玩家可能的重连）
 		i.cleaner.OnDisconnect(uid)
 	}
 	log.Infof("[auth] player disconnected: uid=%d cid=%d", uid, ctx.CID())

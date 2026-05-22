@@ -12,24 +12,37 @@ import (
 // PlayerDoneCleaner 管理玩家断线后的延迟清理。
 //
 // 设计原因：
-//  1. Grace Period：玩家可能短暂断网后立即重连，延迟清理避免频繁创建/销毁
-//  2. 防止消息队列竞态：延迟期间，旧节点的待处理消息可能仍在修改玩家数据。
-//     真正清理时，节点检查确保只有"玩家已不在本节点"才执行清理。
+//  1. Grace Period：玩家可能短暂断网后立即重连，延迟清理避免频繁创建/销毁。
+//  2. 断线瞬间杀 Actor：关闭 mailbox，丢弃排队消息，杜绝旧消息在 Grace Period
+//     期间修改玩家数据。
+//  3. 重连检测：doCleanup 时通过 LocateGate 检查玩家是否有活跃的 Gate 连接，
+//     有则跳过清理（已重连），无则执行清理。
+//  4. 失败重试：CleanPlayerData 失败时会延迟重试，全部成功后才会 UnbindNode，
+//     防止清理失败导致数据丢失。
 type PlayerDoneCleaner struct {
-	mu       sync.Mutex
-	timers   map[int64]*time.Timer
-	services []CleanableService
-	proxy    *node.Proxy
-	delay    time.Duration
+	mu         sync.Mutex
+	timers     map[int64]*time.Timer
+	retries    map[int64]int // per-UID retry count
+	services   []CleanableService
+	proxy      *node.Proxy
+	delay      time.Duration
+	maxRetries int // -1: 不重试, 0: 一直重试, >0: 最大重试次数
 }
 
 // NewPlayerDoneCleaner 创建玩家延迟清理器。
+//
 // delay 是断线等待时间（建议 30~60 秒）。
-func NewPlayerDoneCleaner(proxy *node.Proxy, delay time.Duration) *PlayerDoneCleaner {
+// maxRetries 控制清理失败后的重试行为：
+//   - -1  不重试，清理一次后直接解绑
+//   - 0   一直重试直到成功
+//   - >0  最多重试 maxRetries 次
+func NewPlayerDoneCleaner(proxy *node.Proxy, delay time.Duration, maxRetries int) *PlayerDoneCleaner {
 	return &PlayerDoneCleaner{
-		timers: make(map[int64]*time.Timer),
-		proxy:  proxy,
-		delay:  delay,
+		timers:     make(map[int64]*time.Timer),
+		retries:    make(map[int64]int),
+		proxy:      proxy,
+		delay:      delay,
+		maxRetries: maxRetries,
 	}
 }
 
@@ -50,6 +63,9 @@ func (c *PlayerDoneCleaner) OnDisconnect(uid int64) {
 		t.Stop()
 	}
 
+	// 重置重试计数
+	delete(c.retries, uid)
+
 	c.timers[uid] = time.AfterFunc(c.delay, func() {
 		c.doCleanup(uid)
 	})
@@ -67,24 +83,78 @@ func (c *PlayerDoneCleaner) OnLogin(uid int64) {
 		delete(c.timers, uid)
 		log.Infof("[cleaner] cleanup cancelled after relogin: uid=%d", uid)
 	}
+
+	delete(c.retries, uid)
 }
 
-// doCleanup 执行真正的清理。先检查玩家是否还在本节点，再清理内存。
+// doCleanup 执行真正的清理。先检查玩家是否已重连，再清理内存。
+// 如果 CleanPlayerData 失败则根据 maxRetries 决定是否重试。
 func (c *PlayerDoneCleaner) doCleanup(uid int64) {
 	c.mu.Lock()
+	retries := c.retries[uid]
 	delete(c.timers, uid)
 	c.mu.Unlock()
 
-	// 再查一次：玩家是否已经重新登录到本节点了（在定时器触发前的一瞬间）
-	// 如果是，则不清理
-	_, ok, err := c.proxy.AskNode(context.Background(), uid, c.proxy.GetName(), c.proxy.GetID())
-	if err == nil && ok {
-		log.Infof("[cleaner] cleanup skipped, player still on this node: uid=%d", uid)
+	// 再查一次：玩家是否已经重连（有活跃的 Gate 绑定）
+	gid, err := c.proxy.LocateGate(context.Background(), uid)
+	if err == nil && gid != "" {
+		log.Infof("[cleaner] cleanup skipped, player reconnected: uid=%d gid=%s", uid, gid)
+		c.mu.Lock()
+		delete(c.retries, uid)
+		c.mu.Unlock()
 		return
 	}
 
-	log.Infof("[cleaner] cleaning player data: uid=%d", uid)
+	log.Infof("[cleaner] cleaning player data: uid=%d attempt=%d", uid, retries)
+
+	var errs []error
 	for _, svc := range c.services {
-		svc.CleanPlayerData(uid)
+		if err := svc.CleanPlayerData(uid); err != nil {
+			errs = append(errs, err)
+		}
+	}
+
+	if len(errs) == 0 {
+		// 全部成功 → 解绑
+		c.mu.Lock()
+		delete(c.retries, uid)
+		c.mu.Unlock()
+
+		log.Infof("[cleaner] cleanup done, unbinding: uid=%d", uid)
+		_ = c.proxy.UnbindNode(context.Background(), uid)
+		return
+	}
+
+	// 有失败，根据 maxRetries 决定行为
+	switch {
+	case c.maxRetries < 0:
+		// 不重试，直接解绑
+		c.mu.Lock()
+		delete(c.retries, uid)
+		c.mu.Unlock()
+
+		log.Warnf("[cleaner] cleanup failed, force unbind (no retry): uid=%d errs=%v", uid, errs)
+		_ = c.proxy.UnbindNode(context.Background(), uid)
+
+	case c.maxRetries == 0 || retries < c.maxRetries:
+		// 无限重试 or 未达上限 → 延迟重试
+		c.mu.Lock()
+		c.retries[uid] = retries + 1
+		c.timers[uid] = time.AfterFunc(c.delay, func() {
+			c.doCleanup(uid)
+		})
+		c.mu.Unlock()
+
+		log.Warnf("[cleaner] cleanup failed, scheduling retry: uid=%d attempt=%d maxRetries=%d errs=%v",
+			uid, retries+1, c.maxRetries, errs)
+
+	default:
+		// 已达重试上限 → 强制解绑
+		c.mu.Lock()
+		delete(c.retries, uid)
+		c.mu.Unlock()
+
+		log.Errorf("[cleaner] cleanup failed after %d retries, force unbind: uid=%d errs=%v", retries, uid, errs)
+		_ = c.proxy.UnbindNode(context.Background(), uid)
 	}
 }

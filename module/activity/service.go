@@ -14,6 +14,6 @@ func (s *service) ListActivities(aType int32) ([]*ActivityInfo, error) {
 	return s.store.ListActivities(context.Background(), aType)
 }
 
-func (s *service) CleanPlayerData(uid int64) {
-	_ = s.store.RemovePlayerClaims(context.Background(), uid)
+func (s *service) CleanPlayerData(uid int64) error {
+	return s.store.RemovePlayerClaims(context.Background(), uid)
 }

@@ -30,7 +30,7 @@ func (m *authModule) Init(proxy *node.Proxy) error {
 	}
 
 	// 创建玩家断线延迟清理器（30 秒 Grace Period）
-	cleaner := stack.NewPlayerDoneCleaner(proxy, 30*time.Second)
+	cleaner := stack.NewPlayerDoneCleaner(proxy, 30*time.Second, 3)
 	stack.RegisterService("cleaner", cleaner)
 
 	impl := newImpl(o.store, cleaner, proxy)
@@ -45,6 +45,9 @@ func (m *authModule) Init(proxy *node.Proxy) error {
 	// 注册连接事件处理器（事件不能调用 ctx.Response）
 	proxy.AddEventHandler(cluster.Connect, impl.handleConnect)
 	proxy.AddEventHandler(cluster.Disconnect, impl.handleDisconnect)
+
+	// 注册清理回调（Grace Period 到期后清除 token）
+	cleaner.Register(impl.svc)
 
 	// 注册服务供其他模块使用
 	stack.RegisterService(name, impl.svc)
