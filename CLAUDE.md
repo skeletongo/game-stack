@@ -10,6 +10,7 @@
 
 ```bash
 bash update_due.sh          # 获取/重置依赖
+bash gen_proto.sh           # 生成所有模块的 proto 代码
 go build ./...              # 构建所有包
 go vet ./...                # 检查所有包
 docker-compose -f docker/docker-compose.yaml up -d  # 启动开发基础设施（etcd + Redis）

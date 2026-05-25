@@ -8,6 +8,8 @@ require (
 	github.com/dobyte/due/registry/etcd/v2 v2.0.0-20260423084221-f9caf382108e
 	github.com/dobyte/due/transport/grpc/v2 v2.0.0-20260423084221-f9caf382108e
 	github.com/dobyte/due/v2 v2.5.5
+	google.golang.org/grpc v1.78.0
+	google.golang.org/protobuf v1.36.10
 )
 
 require (
@@ -45,8 +47,6 @@ require (
 	golang.org/x/text v0.31.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20251029180050-ab9386a59fda // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20251029180050-ab9386a59fda // indirect
-	google.golang.org/grpc v1.78.0 // indirect
-	google.golang.org/protobuf v1.36.10 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 

@@ -62,15 +62,25 @@ Node 的 `Proxy` 提供了多种跨节点通信方式：
 
 ### gRPC 服务调用 (Service Provider / Mesh Client)
 
-模块可在 `Init` 中注册 gRPC 服务，供其他节点直接调用（非消息路由，直接 RPC）：
+模块在 `Init` 中注册 gRPC 服务，其他节点通过 Mesh Client 直连调用。规范示例：`module/player/grpc.go`。
+
+**服务端：**
 
 ```go
-// 注册服务（服务端）
-proxy.AddServiceProvider("player", &playerDesc{}, &playerService{})
+// 在 Init 中调用
+player.RegisterGRPC(proxy, impl.svc)
+```
 
-// 新建客户端（调用方，通过服务发现）
-client, err := proxy.NewMeshClient("discovery://player")
-reply, err := client.Call(ctx, "GetPlayer", &GetPlayerReq{UID: uid})
+**调用方 — 两种模式：**
+
+```go
+// 无状态调用（服务发现，随机节点）
+client, _ := player.NewClient(proxy)
+resp, _ := client.GetPlayer(ctx, &playerpb.GetPlayerReq{Uid: uid})
+
+// 面向玩家调用（定位到玩家所在节点，访问内存数据）
+client, _ := player.NewClientForPlayer(proxy, uid)
+resp, _ := client.GetPlayer(ctx, &playerpb.GetPlayerReq{Uid: uid})
 ```
 
 NewMeshClient 支持三种寻址模式：

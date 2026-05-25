@@ -46,7 +46,6 @@ docs/       设计文档
 
 - [ ] Token 共享存储（Redis 实现，支持跨节点令牌验证）
 - [ ] 其余模块接入 CleanableService（shop / guild / leaderboard / chat / mail / room / match）
-- [ ] 模块间同步 RPC 封装（基于 `AddServiceProvider` / `NewMeshClient`）
 
 ### 基础设施
 

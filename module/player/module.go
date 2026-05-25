@@ -40,6 +40,9 @@ func (m *playerModule) Init(proxy *node.Proxy) error {
 		c.Register(impl.svc)
 	}
 
+	// 注册 gRPC 服务（供其他节点调用）
+	RegisterGRPC(proxy, impl.svc)
+
 	// 注册服务供其他模块使用
 	stack.RegisterService(name, impl.svc)
 

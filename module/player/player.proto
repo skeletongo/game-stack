@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+package player;
+
+option go_package = "github.com/skeletongo/game-stack/module/player";
+
+service Player {
+    rpc GetPlayer(GetPlayerReq) returns (GetPlayerResp);
+}
+
+message GetPlayerReq {
+    int64 uid = 1;
+}
+
+message GetPlayerResp {
+    int64  uid   = 1;
+    string name  = 2;
+    int32  level = 3;
+    int64  exp   = 4;
+    int32  gold  = 5;
+}
