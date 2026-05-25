@@ -4,6 +4,33 @@ package player;
 
 option go_package = "github.com/skeletongo/game-stack/proto/player";
 
+// ==== 路由 ====
+
+// PlayerRoute 玩家模块路由编号（2000-2999）。
+enum PlayerRoute {
+    PLAYER_ROUTE_UNSPECIFIED = 0;  // proto3 要求首个值为 0
+    GET_INFO                 = 2001;
+    UPDATE                   = 2002;
+    DELETE                   = 2003;
+    SEARCH                   = 2004;
+    SET_AVATAR               = 2005;
+    LEVEL_UP                 = 2006;
+}
+
+// ==== 错误码 ====
+
+// PlayerError 玩家模块错误码（2000-2999）。
+enum PlayerError {
+    PLAYER_ERROR_UNSPECIFIED = 0;  // proto3 要求首个值为 0
+    PLAYER_NOT_FOUND         = 2000;
+    PLAYER_BUSY              = 2001;
+    LEVEL_TOO_LOW            = 2002;
+    NAME_TOO_LONG            = 2003;
+    NOT_ENOUGH_EXP           = 2004;
+}
+
+// ==== 消息 ====
+
 // Shared
 message PlayerInfo {
     int64  id         = 1;

@@ -4,6 +4,35 @@ package auth;
 
 option go_package = "github.com/skeletongo/game-stack/proto/auth";
 
+// ==== 路由 ====
+
+// AuthRoute 认证模块路由编号（1000-1999）。
+enum AuthRoute {
+    AUTH_ROUTE_UNSPECIFIED  = 0;   // proto3 要求首个值为 0
+    LOGIN                   = 1001;
+    REGISTER                = 1002;
+    LOGOUT                  = 1003;
+    TOKEN_REFRESH           = 1004;
+    KICK                    = 1005;
+}
+
+// ==== 错误码 ====
+
+// AuthError 认证模块错误码（1000-1999）。
+enum AuthError {
+    AUTH_ERROR_UNSPECIFIED = 0;   // proto3 要求首个值为 0
+    INVALID_TOKEN          = 1000;
+    TOKEN_EXPIRED          = 1001;
+    ACCOUNT_EXISTS         = 1002;
+    WRONG_PASSWORD         = 1003;
+    ACCOUNT_BANNED         = 1004;
+    LOGIN_ELSEWHERE        = 1005;
+    NICKNAME_EXISTS        = 1006;
+    NICKNAME_TOO_LONG      = 1007;
+}
+
+// ==== 消息 ====
+
 // Login
 message LoginRequest {
     string username = 1;
@@ -13,9 +42,9 @@ message LoginRequest {
 }
 
 message LoginResponse {
-    string token       = 1;
-    int64  player_id   = 2;
-    int64  expires_at  = 3;
+    string token        = 1;
+    int64  player_id    = 2;
+    int64  expires_at   = 3;
     bool   is_new_player = 4;
 }
 
