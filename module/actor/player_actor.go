@@ -9,7 +9,7 @@
 // 两种使用模式：
 //
 //	模式1 (fire-and-forget):
-//	  actor.Invoke(proxy, uid, func() { playerSvc.DeductGold(uid, 100) })
+//	  actor.InvokePlayer(proxy, uid, func() { playerSvc.DeductGold(uid, 100) })
 //
 //	模式2 (同步请求-响应，通过 Actor mailbox):
 //	  模块 Init 时：
@@ -32,18 +32,18 @@ import (
 
 const KindPlayer = "player"
 
-// ActorRouteInitializer 在 Actor 创建后调用，用于注册路由和事件处理器。
+// RouteInitializer 在 Actor 创建后调用，用于注册路由和事件处理器。
 // 此回调在 Actor 的 Init 阶段、Start 之前执行。
-type ActorRouteInitializer func(actor *node.Actor)
+type RouteInitializer func(actor *node.Actor)
 
 var (
 	mu                sync.Mutex
-	routeInitializers []ActorRouteInitializer
+	routeInitializers []RouteInitializer
 )
 
 // RegisterRouteInitializer 注册一个 Actor 路由初始化器。
 // 在模块的 Init() 中调用。SpawnPlayer 时会应用所有已注册的初始化器。
-func RegisterRouteInitializer(fn ActorRouteInitializer) {
+func RegisterRouteInitializer(fn RouteInitializer) {
 	mu.Lock()
 	defer mu.Unlock()
 	routeInitializers = append(routeInitializers, fn)
@@ -59,7 +59,7 @@ func SpawnPlayer(proxy *node.Proxy, uid int64) (*node.Actor, error) {
 
 			// 应用所有模块注册的 Actor 路由初始化器
 			mu.Lock()
-			initializers := make([]ActorRouteInitializer, len(routeInitializers))
+			initializers := make([]RouteInitializer, len(routeInitializers))
 			copy(initializers, routeInitializers)
 			mu.Unlock()
 
@@ -99,8 +99,8 @@ func KillPlayer(proxy *node.Proxy, uid int64) {
 	}
 }
 
-// Get 获取玩家的 Actor。不存在返回 nil。
-func Get(proxy *node.Proxy, uid int64) *node.Actor {
+// GetPlayer 获取玩家的 Actor。不存在返回 nil。
+func GetPlayer(proxy *node.Proxy, uid int64) *node.Actor {
 	act, ok := proxy.Actor(KindPlayer, strconv.FormatInt(uid, 10))
 	if !ok {
 		return nil
@@ -108,10 +108,10 @@ func Get(proxy *node.Proxy, uid int64) *node.Actor {
 	return act
 }
 
-// Invoke 向玩家 Actor 投递函数，在 Actor goroutine 中串行执行。
+// InvokePlayer 向玩家 Actor 投递函数，在 Actor goroutine 中串行执行。
 // Actor 不存在时静默丢弃（玩家已断线）。
 // Actor 存在但归属权不属于本节点时，杀死残留 Actor 并丢弃。
-func Invoke(proxy *node.Proxy, uid int64, fn func()) {
+func InvokePlayer(proxy *node.Proxy, uid int64, fn func()) {
 	// 防御性检查：玩家是否仍绑定在本节点
 	if nid, err := proxy.LocateNode(context.Background(), uid, proxy.GetName()); err == nil && nid != "" && nid != proxy.GetID() {
 		log.Warnf("[actor] invoke dropped, ownership lost: uid=%d bound_nid=%s my_nid=%s", uid, nid, proxy.GetID())
@@ -119,7 +119,7 @@ func Invoke(proxy *node.Proxy, uid int64, fn func()) {
 		return
 	}
 
-	if act := Get(proxy, uid); act != nil {
+	if act := GetPlayer(proxy, uid); act != nil {
 		act.Invoke(fn)
 	}
 }

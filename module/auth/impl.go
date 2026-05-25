@@ -87,7 +87,7 @@ func (i *impl) handleLogin(ctx node.Context) {
 	} else if boundNid == i.proxy.GetID() {
 		// 重连回到原节点：取消清理 + 恢复 Actor
 		i.cleaner.OnLogin(user.ID)
-		if act := actor.Get(i.proxy, user.ID); act == nil {
+		if act := actor.GetPlayer(i.proxy, user.ID); act == nil {
 			if _, err := actor.SpawnPlayer(i.proxy, user.ID); err != nil {
 				log.Errorf("re-spawn actor failed: uid=%d err=%v", user.ID, err)
 			}
@@ -213,7 +213,7 @@ func (i *impl) handleConnect(ctx node.Context) {
 	i.cleaner.OnLogin(uid)
 
 	// 如果 Actor 已被杀死（断线场景），重新创建
-	if act := actor.Get(i.proxy, uid); act == nil {
+	if act := actor.GetPlayer(i.proxy, uid); act == nil {
 		if _, err := actor.SpawnPlayer(i.proxy, uid); err != nil {
 			log.Errorf("[auth] re-spawn actor on connect failed: uid=%d err=%v", uid, err)
 		} else {
