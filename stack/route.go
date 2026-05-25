@@ -27,7 +27,6 @@ const (
 	RouteAuthLogout       int32 = 1003
 	RouteAuthTokenRefresh int32 = 1004
 	RouteAuthKick         int32 = 1005
-	RouteAuthTestRoute    int32 = 1006
 
 	// Player 模块 (2000-2999)
 	RoutePlayerGetInfo   int32 = 2001

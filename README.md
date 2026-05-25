@@ -20,7 +20,7 @@ go run cmd/node/main.go
 
 ## 设计要点
 
-- **模块化架构** — 14 个游戏模块（auth / player / chat / match / room / inventory / quest / combat / guild / mail / shop / leaderboard / activity / social），遵循统一的 6 文件模式，可插拔
+- **模块化架构** — 可插拔的游戏模块（auth / player / ...），遵循统一的 6 文件模式 + gRPC
 - **Actor 串行化** — 同一玩家的所有状态修改在单 goroutine 中排队执行，杜绝读-改-写并发竞争
 - **断线无缝重连** — 30s Grace Period 内重连保留内存数据，避免频繁清理重建
 - **编号统一** — 路由和错误码共用 `模块号 × 1000 + 子码` 公式，心智负担低
@@ -31,7 +31,7 @@ go run cmd/node/main.go
 ```
 cmd/        入口点（gate、node）
 stack/      核心框架：应用启动、路由、错误码、Module 接口、中间件、延迟清理器
-module/     14 个可插拔游戏模块
+module/     可插拔游戏模块（actor / auth / player）
 protocol/   消息结构体（Go 结构体 + json/msgpack 标签，无需 protoc）
 docs/       设计文档
 ```
@@ -40,12 +40,10 @@ docs/       设计文档
 
 ### 并发安全
 
-- [ ] Actor 写操作全覆盖（当前仅 ShopBuy 已接入 RouteToActor，其余 9 个模块待改造）
-
 ### 模块完善
 
 - [ ] Token 共享存储（Redis 实现，支持跨节点令牌验证）
-- [ ] 其余模块接入 CleanableService（shop / guild / leaderboard / chat / mail / room / match）
+- [ ] 其余模块接入 CleanableService
 
 ### 基础设施
 
@@ -54,9 +52,7 @@ docs/       设计文档
 
 ### 功能模块
 
-- [ ] 邮件系统完整实现（附件、批量操作、过期清理）
-- [ ] 排行榜分段加载、赛季重置
-- [ ] 活动系统时间线管理、条件任务
+- [ ] 邮件系统
 
 ### 文档
 
