@@ -8,7 +8,7 @@ import (
 	"github.com/dobyte/due/v2/log"
 
 	"github.com/skeletongo/game-stack/module/actor"
-	"github.com/skeletongo/game-stack/protocol/auth"
+	"github.com/skeletongo/game-stack/proto/auth"
 	"github.com/skeletongo/game-stack/stack"
 )
 
@@ -97,7 +97,7 @@ func (i *impl) handleLogin(ctx node.Context) {
 
 	stack.RespondData(ctx, &auth.LoginResponse{
 		Token:       token,
-		PlayerID:    user.ID,
+		PlayerId:    user.ID,
 		ExpiresAt:   time.Now().Add(24 * time.Hour).Unix(),
 		IsNewPlayer: false,
 	})
@@ -166,7 +166,7 @@ func (i *impl) handleRegister(ctx node.Context) {
 
 	stack.RespondData(ctx, &auth.RegisterResponse{
 		Token:    token,
-		PlayerID: user.ID,
+		PlayerId: user.ID,
 	})
 }
 

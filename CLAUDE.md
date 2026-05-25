@@ -25,7 +25,7 @@ docs/        → 详细设计文档
 cmd/         → 入口点（gate、node）—— 组装组件与模块
 stack/       → 核心框架 —— 应用启动、Module 接口、路由、错误、中间件、服务注册
 module/      → 可插拔游戏模块（actor / auth / player）
-protocol/    → 消息结构体定义（带 json/msgpack 标签的 Go 结构体，无需 protoc）
+proto/       → 客户端通信协议（protobuf 定义，客户端与服务端共用）
 ```
 
 ## 路由编号

@@ -1,0 +1,39 @@
+syntax = "proto3";
+
+package player;
+
+option go_package = "github.com/skeletongo/game-stack/proto/player";
+
+// Shared
+message PlayerInfo {
+    int64  id         = 1;
+    string nickname   = 2;
+    int32  level      = 3;
+    int64  exp        = 4;
+    string avatar     = 5;
+    int32  gold       = 6;
+    int32  diamond    = 7;
+    int64  created_at = 8;
+}
+
+// GetInfo
+message GetInfoRequest {
+    int64 player_id = 1;
+}
+
+message GetInfoResponse {
+    PlayerInfo player = 1;
+}
+
+// UpdateProfile
+message UpdateProfileRequest {
+    string nickname = 1;
+    string avatar   = 2;
+}
+
+// LevelUpEvent (server push)
+message LevelUpEvent {
+    int32 old_level = 1;
+    int32 new_level = 2;
+    int64 exp_gain  = 3;
+}

@@ -32,11 +32,18 @@ go run cmd/node/main.go
 cmd/        入口点（gate、node）
 stack/      核心框架：应用启动、路由、错误码、Module 接口、中间件、延迟清理器
 module/     可插拔游戏模块（actor / auth / player）
-protocol/   消息结构体（Go 结构体 + json/msgpack 标签，无需 protoc）
+proto/      客户端通信协议（protobuf，服务端客户端共用）
 docs/       设计文档
 ```
 
 ## 后续计划
+
+### gsc CLI
+
+- [ ] 添加模块新模块
+- [ ] 自动添加模块客户端协议
+- [ ] 自动添加模块错误码
+- [ ] 生成模块文档
 
 ### 并发安全
 

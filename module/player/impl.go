@@ -9,7 +9,7 @@ import (
 	"github.com/dobyte/due/v2/cluster/node"
 	"github.com/dobyte/due/v2/log"
 
-	"github.com/skeletongo/game-stack/protocol/player"
+	"github.com/skeletongo/game-stack/proto/player"
 	"github.com/skeletongo/game-stack/stack"
 )
 
@@ -33,7 +33,7 @@ func (i *impl) handleGetInfo(ctx node.Context) {
 		return
 	}
 
-	pid := req.PlayerID
+	pid := req.PlayerId
 	if pid == 0 {
 		pid = ctx.UID()
 	}
@@ -46,7 +46,7 @@ func (i *impl) handleGetInfo(ctx node.Context) {
 
 	stack.RespondData(ctx, &player.GetInfoResponse{
 		Player: &player.PlayerInfo{
-			ID:        p.ID,
+			Id:        p.ID,
 			Nickname:  p.Nickname,
 			Level:     p.Level,
 			Exp:       p.Exp,
@@ -133,12 +133,12 @@ func (i *impl) handleSearch(ctx node.Context) {
 		return
 	}
 
-	if req.PlayerID == 0 {
+	if req.PlayerId == 0 {
 		stack.RespondError(ctx, stack.ErrInvalidParam)
 		return
 	}
 
-	p, err := i.svc.store.GetPlayer(context.Background(), req.PlayerID)
+	p, err := i.svc.store.GetPlayer(context.Background(), req.PlayerId)
 	if err != nil {
 		stack.RespondError(ctx, stack.ErrPlayerNotFound)
 		return
@@ -146,7 +146,7 @@ func (i *impl) handleSearch(ctx node.Context) {
 
 	stack.RespondData(ctx, &player.GetInfoResponse{
 		Player: &player.PlayerInfo{
-			ID:        p.ID,
+			Id:        p.ID,
 			Nickname:  p.Nickname,
 			Level:     p.Level,
 			Avatar:    p.Avatar,
