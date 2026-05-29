@@ -25,12 +25,12 @@ const (
 type AuthRoute int32
 
 const (
-	AuthRoute_AUTH_ROUTE_UNSPECIFIED AuthRoute = 0 // proto3 要求首个值为 0
-	AuthRoute_LOGIN                  AuthRoute = 1001
-	AuthRoute_REGISTER               AuthRoute = 1002
-	AuthRoute_LOGOUT                 AuthRoute = 1003
-	AuthRoute_TOKEN_REFRESH          AuthRoute = 1004
-	AuthRoute_KICK                   AuthRoute = 1005
+	AuthRoute_AUTH_ROUTE_UNSPECIFIED AuthRoute = 0    // proto3 要求首个值为 0
+	AuthRoute_LOGIN                  AuthRoute = 1001 // 登录
+	AuthRoute_REGISTER               AuthRoute = 1002 // 注册
+	AuthRoute_LOGOUT                 AuthRoute = 1003 // 登出
+	AuthRoute_TOKEN_REFRESH          AuthRoute = 1004 // 刷新token
+	AuthRoute_KICK                   AuthRoute = 1005 // 踢出
 )
 
 // Enum value maps for AuthRoute.
@@ -84,15 +84,15 @@ func (AuthRoute) EnumDescriptor() ([]byte, []int) {
 type AuthError int32
 
 const (
-	AuthError_AUTH_ERROR_UNSPECIFIED AuthError = 0 // proto3 要求首个值为 0
-	AuthError_INVALID_TOKEN          AuthError = 1000
-	AuthError_TOKEN_EXPIRED          AuthError = 1001
-	AuthError_ACCOUNT_EXISTS         AuthError = 1002
-	AuthError_WRONG_PASSWORD         AuthError = 1003
-	AuthError_ACCOUNT_BANNED         AuthError = 1004
-	AuthError_LOGIN_ELSEWHERE        AuthError = 1005
-	AuthError_NICKNAME_EXISTS        AuthError = 1006
-	AuthError_NICKNAME_TOO_LONG      AuthError = 1007
+	AuthError_AUTH_ERROR_UNSPECIFIED AuthError = 0    // proto3 要求首个值为 0
+	AuthError_INVALID_TOKEN          AuthError = 1000 // 无效token
+	AuthError_TOKEN_EXPIRED          AuthError = 1001 // token过期
+	AuthError_ACCOUNT_EXISTS         AuthError = 1002 // 账号已存在
+	AuthError_WRONG_PASSWORD         AuthError = 1003 // 密码错误
+	AuthError_ACCOUNT_BANNED         AuthError = 1004 // 账号禁用
+	AuthError_LOGIN_ELSEWHERE        AuthError = 1005 // 在其它地方登录
+	AuthError_NICKNAME_EXISTS        AuthError = 1006 // 昵称已存在
+	AuthError_NICKNAME_TOO_LONG      AuthError = 1007 // 昵称太长
 )
 
 // Enum value maps for AuthError.

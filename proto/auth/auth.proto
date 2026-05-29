@@ -9,11 +9,11 @@ option go_package = "github.com/skeletongo/game-stack/proto/auth";
 // AuthRoute 认证模块路由编号（1000-1999）。
 enum AuthRoute {
     AUTH_ROUTE_UNSPECIFIED  = 0;   // proto3 要求首个值为 0
-    LOGIN                   = 1001;
-    REGISTER                = 1002;
-    LOGOUT                  = 1003;
-    TOKEN_REFRESH           = 1004;
-    KICK                    = 1005;
+    LOGIN                   = 1001; // 登录
+    REGISTER                = 1002; // 注册
+    LOGOUT                  = 1003; // 登出
+    TOKEN_REFRESH           = 1004; // 刷新token
+    KICK                    = 1005; // 踢出
 }
 
 // ==== 错误码 ====
@@ -21,14 +21,14 @@ enum AuthRoute {
 // AuthError 认证模块错误码（1000-1999）。
 enum AuthError {
     AUTH_ERROR_UNSPECIFIED = 0;   // proto3 要求首个值为 0
-    INVALID_TOKEN          = 1000;
-    TOKEN_EXPIRED          = 1001;
-    ACCOUNT_EXISTS         = 1002;
-    WRONG_PASSWORD         = 1003;
-    ACCOUNT_BANNED         = 1004;
-    LOGIN_ELSEWHERE        = 1005;
-    NICKNAME_EXISTS        = 1006;
-    NICKNAME_TOO_LONG      = 1007;
+    INVALID_TOKEN          = 1000; // 无效token
+    TOKEN_EXPIRED          = 1001; // token过期
+    ACCOUNT_EXISTS         = 1002; // 账号已存在
+    WRONG_PASSWORD         = 1003; // 密码错误
+    ACCOUNT_BANNED         = 1004; // 账号禁用
+    LOGIN_ELSEWHERE        = 1005; // 在其它地方登录
+    NICKNAME_EXISTS        = 1006; // 昵称已存在
+    NICKNAME_TOO_LONG      = 1007; // 昵称太长
 }
 
 // ==== 消息 ====

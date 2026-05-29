@@ -68,7 +68,7 @@ Node 的 `Proxy` 提供了多种跨节点通信方式：
 
 ```go
 // 在 Init 中调用
-player.RegisterGRPC(proxy, impl.svc)
+player.RegisterGRPC(proxy, repo)
 ```
 
 **调用方 — 两种模式：**

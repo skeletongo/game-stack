@@ -29,6 +29,7 @@ go run cmd/node/main.go
 ## 架构
 
 ```
+ddd/        DDD领域驱动设计建模工具
 cmd/        入口点（gate、node）
 stack/      核心框架：应用启动、路由、错误码、Module 接口、中间件、延迟清理器
 module/     可插拔游戏模块（actor / auth / player）

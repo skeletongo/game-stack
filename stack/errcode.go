@@ -58,8 +58,5 @@ var (
 // Player 模块错误 (2000-2999)
 var (
 	ErrPlayerNotFound = &Code{Code: int32(player.PlayerError_PLAYER_NOT_FOUND), Message: "player not found"}
-	ErrPlayerBusy     = &Code{Code: int32(player.PlayerError_PLAYER_BUSY), Message: "player is busy"}
-	ErrLevelTooLow    = &Code{Code: int32(player.PlayerError_LEVEL_TOO_LOW), Message: "level too low"}
 	ErrNameTooLong    = &Code{Code: int32(player.PlayerError_NAME_TOO_LONG), Message: "name too long"}
-	ErrNotEnoughExp   = &Code{Code: int32(player.PlayerError_NOT_ENOUGH_EXP), Message: "not enough experience"}
 )

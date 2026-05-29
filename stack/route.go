@@ -28,9 +28,6 @@ const (
 
 	// Player 模块 (2000-2999)
 	RoutePlayerGetInfo   int32 = int32(player.PlayerRoute_GET_INFO)
-	RoutePlayerUpdate    int32 = int32(player.PlayerRoute_UPDATE)
-	RoutePlayerDelete    int32 = int32(player.PlayerRoute_DELETE)
-	RoutePlayerSearch    int32 = int32(player.PlayerRoute_SEARCH)
 	RoutePlayerSetAvatar int32 = int32(player.PlayerRoute_SET_AVATAR)
 	RoutePlayerLevelUp   int32 = int32(player.PlayerRoute_LEVEL_UP)
 )

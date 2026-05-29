@@ -9,12 +9,9 @@ option go_package = "github.com/skeletongo/game-stack/proto/player";
 // PlayerRoute 玩家模块路由编号（2000-2999）。
 enum PlayerRoute {
     PLAYER_ROUTE_UNSPECIFIED = 0;  // proto3 要求首个值为 0
-    GET_INFO                 = 2001;
-    UPDATE                   = 2002;
-    DELETE                   = 2003;
-    SEARCH                   = 2004;
-    SET_AVATAR               = 2005;
-    LEVEL_UP                 = 2006;
+    GET_INFO                 = 2001; // 查询玩家信息
+    SET_AVATAR               = 2002; // 修改头像
+    LEVEL_UP                 = 2003; // 升级推送
 }
 
 // ==== 错误码 ====
@@ -22,16 +19,13 @@ enum PlayerRoute {
 // PlayerError 玩家模块错误码（2000-2999）。
 enum PlayerError {
     PLAYER_ERROR_UNSPECIFIED = 0;  // proto3 要求首个值为 0
-    PLAYER_NOT_FOUND         = 2000;
-    PLAYER_BUSY              = 2001;
-    LEVEL_TOO_LOW            = 2002;
-    NAME_TOO_LONG            = 2003;
-    NOT_ENOUGH_EXP           = 2004;
+    PLAYER_NOT_FOUND         = 2000; // 未找到
+    NAME_TOO_LONG            = 2003; // 太长
 }
 
 // ==== 消息 ====
 
-// Shared
+// PlayerInfo 玩家基本信息。
 message PlayerInfo {
     int64  id         = 1;
     string nickname   = 2;
@@ -43,7 +37,7 @@ message PlayerInfo {
     int64  created_at = 8;
 }
 
-// GetInfo
+// GetInfo 查询玩家信息。
 message GetInfoRequest {
     int64 player_id = 1;
 }
@@ -52,13 +46,12 @@ message GetInfoResponse {
     PlayerInfo player = 1;
 }
 
-// UpdateProfile
-message UpdateProfileRequest {
-    string nickname = 1;
-    string avatar   = 2;
+// SetAvatar 设置头像。
+message SetAvatarRequest {
+    string avatar = 1;
 }
 
-// LevelUpEvent (server push)
+// LevelUpEvent 升级推送（服务器主动下推）。
 message LevelUpEvent {
     int32 old_level = 1;
     int32 new_level = 2;
