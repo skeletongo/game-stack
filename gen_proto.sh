@@ -6,7 +6,7 @@ set -euo pipefail
 
 echo "=== generating proto files ==="
 
-for proto in proto/*/*.proto module/*/*.proto; do
+for proto in proto/*/*.proto module/*/grpc/*.proto; do
     echo "  $proto"
     protoc --proto_path=. \
         --go_out=. --go_opt=paths=source_relative \

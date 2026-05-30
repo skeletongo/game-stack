@@ -82,7 +82,7 @@ func (m *playerModule) Init(proxy *node.Proxy) error {
 	})
 
 	// 注册 gRPC 服务（供其他节点调用）
-	grpc.Register(proxy, repo)
+	grpc.Register(name, proxy, repo)
 
 	// 注册清理回调（Grace Period 到期后清除玩家内存数据）
 	if c, ok := stack.GetService("cleaner").(*stack.PlayerDoneCleaner); ok {

@@ -6,8 +6,10 @@ package grpc
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/dobyte/due/v2/cluster/node"
+	"github.com/dobyte/due/v2/transport"
 	grpcgo "google.golang.org/grpc"
 
 	"github.com/skeletongo/game-stack/module/player/domain"
@@ -26,17 +28,20 @@ func (s *server) GetPlayer(ctx context.Context, req *GetPlayerReq) (*GetPlayerRe
 		return nil, err
 	}
 	return &GetPlayerResp{
-		Uid:   p.ID(),
-		Name:  p.Nickname().String(),
-		Level: p.Level().Int32(),
-		Exp:   p.Exp().Int64(),
-		Gold:  p.Gold().Int32(),
+		Uid:       p.ID(),
+		Name:      p.Nickname().String(),
+		Level:     p.Level().Int32(),
+		Exp:       p.Exp().Int64(),
+		Gold:      p.Gold().Int32(),
+		Diamond:   p.Diamond().Int32(),
+		Avatar:    p.Avatar().String(),
+		CreatedAt: p.CreatedAt(),
 	}, nil
 }
 
 // Register 注册 gRPC 服务到 due 框架。在模块 Init 中调用。
-func Register(proxy *node.Proxy, repo domain.PlayerRepository) {
-	proxy.AddServiceProvider("player", &Player_ServiceDesc, &server{repo: repo})
+func Register(name string, proxy *node.Proxy, repo domain.PlayerRepository) {
+	proxy.AddServiceProvider(name, &Player_ServiceDesc, &server{repo: repo})
 }
 
 // NewClient 创建 gRPC 客户端（服务发现，随机负载均衡）。
@@ -45,11 +50,7 @@ func NewClient(proxy *node.Proxy) (PlayerClient, error) {
 	if err != nil {
 		return nil, err
 	}
-	cc, ok := conn.Client().(grpcgo.ClientConnInterface)
-	if !ok {
-		return nil, err
-	}
-	return NewPlayerClient(cc), nil
+	return newClientFromConn(conn)
 }
 
 // NewClientForPlayer 创建指向玩家所在节点的 gRPC 客户端。
@@ -62,9 +63,14 @@ func NewClientForPlayer(proxy *node.Proxy, uid int64) (PlayerClient, error) {
 	if err != nil {
 		return nil, err
 	}
+	return newClientFromConn(conn)
+}
+
+// newClientFromConn 从 MeshClient 连接创建 PlayerClient。
+func newClientFromConn(conn transport.Client) (PlayerClient, error) {
 	cc, ok := conn.Client().(grpcgo.ClientConnInterface)
 	if !ok {
-		return nil, err
+		return nil, fmt.Errorf("mesh client does not implement grpc.ClientConnInterface")
 	}
 	return NewPlayerClient(cc), nil
 }

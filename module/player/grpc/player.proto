@@ -13,9 +13,12 @@ message GetPlayerReq {
 }
 
 message GetPlayerResp {
-    int64  uid   = 1;
-    string name  = 2;
-    int32  level = 3;
-    int64  exp   = 4;
-    int32  gold  = 5;
+    int64  uid         = 1;
+    string name        = 2;
+    int32  level       = 3;
+    int64  exp         = 4;
+    int32  gold        = 5;
+    int32  diamond     = 6;
+    string avatar      = 7;
+    int64  created_at  = 8;
 }
