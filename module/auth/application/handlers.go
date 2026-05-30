@@ -8,6 +8,7 @@ import (
 
 	"github.com/skeletongo/game-stack/ddd"
 	"github.com/skeletongo/game-stack/module/auth/domain"
+	"github.com/skeletongo/game-stack/stack"
 )
 
 // RegisterHandler 处理注册命令。
@@ -25,7 +26,7 @@ type RegisterResult struct {
 // Handle 执行注册：校验用户名唯一、创建账户、生成令牌、发布事件。
 func (h *RegisterHandler) Handle(ctx context.Context, cmd RegisterCmd) (*RegisterResult, error) {
 	if _, err := h.Repo.FindByUsername(ctx, cmd.Username); err == nil {
-		return nil, domain.ErrAccountExists
+		return nil, stack.ErrAccountExists
 	}
 	userID := time.Now().UnixNano()
 	account, err := domain.NewAccount(userID, cmd.Username, cmd.Password, cmd.Nickname)
@@ -62,13 +63,13 @@ type LoginResult struct {
 func (h *LoginHandler) Handle(ctx context.Context, cmd LoginCmd) (*LoginResult, error) {
 	account, err := h.Repo.FindByUsername(ctx, cmd.Username)
 	if err != nil {
-		return nil, domain.ErrWrongPassword
+		return nil, stack.ErrWrongPassword
 	}
 	if account.IsBanned() {
-		return nil, domain.ErrAccountBanned
+		return nil, stack.ErrAccountBanned
 	}
 	if !account.VerifyPassword(cmd.Password) {
-		return nil, domain.ErrWrongPassword
+		return nil, stack.ErrWrongPassword
 	}
 	token := domain.GenerateToken()
 	if err := account.Login(token, ""); err != nil {
@@ -118,10 +119,10 @@ type RefreshTokenResult struct {
 func (h *RefreshTokenHandler) Handle(ctx context.Context, cmd RefreshTokenCmd) (*RefreshTokenResult, error) {
 	account, err := h.Repo.FindByToken(ctx, cmd.Token)
 	if err != nil {
-		return nil, domain.ErrInvalidToken
+		return nil, stack.ErrInvalidToken
 	}
 	if account.ID() != cmd.UserID {
-		return nil, domain.ErrInvalidToken
+		return nil, stack.ErrInvalidToken
 	}
 	newToken := domain.GenerateToken()
 	account.RefreshToken(newToken)

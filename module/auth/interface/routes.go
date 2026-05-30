@@ -9,12 +9,15 @@ package interfaces
 import (
 	"time"
 
+	"github.com/dobyte/due/v2/cluster"
 	"github.com/dobyte/due/v2/cluster/node"
 	"github.com/dobyte/due/v2/log"
+	"github.com/dobyte/due/v2/session"
 
 	"github.com/skeletongo/game-stack/module/actor"
 	"github.com/skeletongo/game-stack/module/auth/application"
 	"github.com/skeletongo/game-stack/proto/auth"
+	"github.com/skeletongo/game-stack/proto/common"
 	"github.com/skeletongo/game-stack/stack"
 )
 
@@ -52,22 +55,34 @@ func (h *Handlers) HandleLogin(ctx node.Context) {
 	req := &auth.LoginRequest{}
 	if err := ctx.Parse(req); err != nil {
 		log.Errorf("[auth] HandleLogin parse failed: %v", err)
-		ctx.Response(nil)
+		stack.ProtoResponse(ctx, &auth.LoginResponse{Code: int32(common.SysError_INVALID_PARAM), Message: err.Error()})
 		return
 	}
 	if req.Username == "" || req.Password == "" {
-		ctx.Response(nil)
+		stack.ProtoResponse(ctx, &auth.LoginResponse{Code: int32(common.SysError_INVALID_PARAM), Message: "username and password required"})
 		return
 	}
 	result, err := h.login.Handle(ctx.Context(), application.LoginCmd{Username: req.Username, Password: req.Password})
 	if err != nil {
 		log.Errorf("[auth] HandleLogin failed: %v", err)
-		ctx.Response(nil)
+		stack.ProtoResponse(ctx, &auth.LoginResponse{Code: stack.ErrCode(err), Message: err.Error()})
 		return
 	}
+
+	// 顶号：若用户已有活跃连接，推送踢出消息并断开旧连接
+	if gid, err := h.proxy.LocateGate(ctx.Context(), result.UserID); err == nil && gid != "" {
+		log.Infof("[auth] kicking old session: uid=%d gid=%s", result.UserID, gid)
+		_ = h.proxy.Push(ctx.Context(), &cluster.PushArgs{
+			Kind:       session.User,
+			Target:     result.UserID,
+			Message:    &cluster.Message{Route: stack.RouteAuthKick, Data: auth.KickResponse{Reason: auth.KickReason_LoginElseWhere}},
+			Disconnect: true,
+		})
+	}
+
 	if err := ctx.BindGate(result.UserID); err != nil {
 		log.Errorf("[auth] HandleLogin BindGate failed: %v", err)
-		ctx.Response(nil)
+		stack.ProtoResponse(ctx, &auth.LoginResponse{Code: int32(common.SysError_INTERNAL_ERROR), Message: err.Error()})
 		return
 	}
 	boundNid, err := h.proxy.LocateNode(ctx.Context(), result.UserID, h.proxy.GetName())
@@ -76,7 +91,7 @@ func (h *Handlers) HandleLogin(ctx node.Context) {
 		// 首次登录：绑定当前节点 + 创建 Actor
 		if err := ctx.BindNode(result.UserID); err != nil {
 			log.Errorf("[auth] HandleLogin BindNode failed: %v", err)
-			ctx.Response(nil)
+			stack.ProtoResponse(ctx, &auth.LoginResponse{Code: int32(common.SysError_INTERNAL_ERROR), Message: err.Error()})
 			return
 		}
 		h.cleaner.OnLogin(result.UserID)
@@ -93,7 +108,8 @@ func (h *Handlers) HandleLogin(ctx node.Context) {
 		}
 	}
 	// 重连且绑定在其他节点：不操作，旧节点通过 Connect 事件感知
-	ctx.Response(&auth.LoginResponse{
+	stack.ProtoResponse(ctx, &auth.LoginResponse{
+		Code:      stack.CodeOK,
 		Token:     result.Token,
 		PlayerId:  result.UserID,
 		ExpiresAt: time.Now().Add(24 * time.Hour).Unix(),
@@ -107,11 +123,11 @@ func (h *Handlers) HandleRegister(ctx node.Context) {
 	req := &auth.RegisterRequest{}
 	if err := ctx.Parse(req); err != nil {
 		log.Errorf("[auth] HandleRegister parse failed: %v", err)
-		ctx.Response(nil)
+		stack.ProtoResponse(ctx, &auth.RegisterResponse{Code: int32(common.SysError_INVALID_PARAM), Message: err.Error()})
 		return
 	}
 	if req.Username == "" || req.Password == "" {
-		ctx.Response(nil)
+		stack.ProtoResponse(ctx, &auth.RegisterResponse{Code: int32(common.SysError_INVALID_PARAM), Message: "username and password required"})
 		return
 	}
 	if req.Nickname == "" {
@@ -122,24 +138,24 @@ func (h *Handlers) HandleRegister(ctx node.Context) {
 	})
 	if err != nil {
 		log.Errorf("[auth] HandleRegister failed: %v", err)
-		ctx.Response(nil)
+		stack.ProtoResponse(ctx, &auth.RegisterResponse{Code: stack.ErrCode(err), Message: err.Error()})
 		return
 	}
 	if err := ctx.BindGate(result.UserID); err != nil {
 		log.Errorf("[auth] HandleRegister BindGate failed: %v", err)
-		ctx.Response(nil)
+		stack.ProtoResponse(ctx, &auth.RegisterResponse{Code: int32(common.SysError_INTERNAL_ERROR), Message: err.Error()})
 		return
 	}
 	if err := ctx.BindNode(result.UserID); err != nil {
 		log.Errorf("[auth] HandleRegister BindNode failed: %v", err)
-		ctx.Response(nil)
+		stack.ProtoResponse(ctx, &auth.RegisterResponse{Code: int32(common.SysError_INTERNAL_ERROR), Message: err.Error()})
 		return
 	}
 	h.cleaner.OnLogin(result.UserID)
 	if _, err := actor.SpawnPlayer(h.proxy, result.UserID); err != nil {
 		log.Errorf("spawn player actor failed: uid=%d err=%v", result.UserID, err)
 	}
-	ctx.Response(&auth.RegisterResponse{Token: result.Token, PlayerId: result.UserID})
+	stack.ProtoResponse(ctx, &auth.RegisterResponse{Code: stack.CodeOK, Token: result.Token, PlayerId: result.UserID})
 }
 
 // HandleLogout 处理登出请求。
@@ -153,7 +169,7 @@ func (h *Handlers) HandleRefresh(ctx node.Context) {
 	req := &auth.TokenRefreshRequest{}
 	if err := ctx.Parse(req); err != nil {
 		log.Errorf("[auth] HandleRefresh parse failed: %v", err)
-		ctx.Response(nil)
+		stack.ProtoResponse(ctx, &auth.TokenRefreshResponse{Code: int32(common.SysError_INVALID_PARAM), Message: err.Error()})
 		return
 	}
 	result, err := h.refresh.Handle(ctx.Context(), application.RefreshTokenCmd{
@@ -161,10 +177,10 @@ func (h *Handlers) HandleRefresh(ctx node.Context) {
 	})
 	if err != nil {
 		log.Errorf("[auth] HandleRefresh failed: %v", err)
-		ctx.Response(nil)
+		stack.ProtoResponse(ctx, &auth.TokenRefreshResponse{Code: stack.ErrCode(err), Message: err.Error()})
 		return
 	}
-	ctx.Response(&auth.TokenRefreshResponse{Token: result.Token, ExpiresAt: result.ExpiresAt})
+	stack.ProtoResponse(ctx, &auth.TokenRefreshResponse{Code: stack.CodeOK, Token: result.Token})
 }
 
 // HandleConnect 处理集群 Connect 事件。

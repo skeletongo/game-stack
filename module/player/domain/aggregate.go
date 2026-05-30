@@ -124,7 +124,7 @@ func (p *Player) AddGold(amount int32) error {
 	return nil
 }
 
-// DeductGold 扣除金币。余额不足时返回 ErrNegativeGold。
+// DeductGold 扣除金币。余额不足时返回 stack.ErrInsufficientGold。
 func (p *Player) DeductGold(amount int32) error {
 	ng, err := p.gold.Subtract(amount)
 	if err != nil {
@@ -146,7 +146,7 @@ func (p *Player) AddDiamond(amount int32) error {
 	return nil
 }
 
-// DeductDiamond 扣除钻石。余额不足时返回 ErrNegativeDiamond。
+// DeductDiamond 扣除钻石。余额不足时返回 stack.ErrInsufficientDiamond。
 func (p *Player) DeductDiamond(amount int32) error {
 	nd, err := p.diamond.Subtract(amount)
 	if err != nil {

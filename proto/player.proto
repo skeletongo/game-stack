@@ -20,7 +20,11 @@ enum PlayerRoute {
 enum PlayerError {
     PLAYER_ERROR_UNSPECIFIED = 0;  // proto3 要求首个值为 0
     PLAYER_NOT_FOUND         = 2000; // 未找到
+    INVALID_LEVEL            = 2001; // 等级不合法
+    INSUFFICIENT_GOLD        = 2002; // 金币不足
     NAME_TOO_LONG            = 2003; // 太长
+    INSUFFICIENT_DIAMOND     = 2004; // 钻石不足
+    INVALID_EXP              = 2005; // 经验值不合法
 }
 
 // ==== 消息 ====
@@ -43,12 +47,20 @@ message GetInfoRequest {
 }
 
 message GetInfoResponse {
-    PlayerInfo player = 1;
+    int32  code    = 1; // 错误码，0 表示成功
+    string message = 2; // 错误描述
+    PlayerInfo player = 3;
 }
 
 // SetAvatar 设置头像。
 message SetAvatarRequest {
     string avatar = 1;
+}
+
+// SetAvatarResponse 修改头像响应。
+message SetAvatarResponse {
+    int32  code    = 1; // 错误码，0 表示成功
+    string message = 2; // 错误描述
 }
 
 // LevelUpEvent 升级推送（服务器主动下推）。

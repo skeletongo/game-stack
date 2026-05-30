@@ -29,11 +29,13 @@ enum AuthError {
     LOGIN_ELSEWHERE        = 1005; // 在其它地方登录
     NICKNAME_EXISTS        = 1006; // 昵称已存在
     NICKNAME_TOO_LONG      = 1007; // 昵称太长
+    INVALID_USERNAME       = 1008; // 用户名不合法
+    INVALID_NICKNAME       = 1009; // 昵称不合法
 }
 
 // ==== 消息 ====
 
-// Login
+// LOGIN
 message LoginRequest {
     string username = 1;
     string password = 2;
@@ -42,13 +44,15 @@ message LoginRequest {
 }
 
 message LoginResponse {
-    string token        = 1;
-    int64  player_id    = 2;
-    int64  expires_at   = 3;
-    bool   is_new_player = 4;
+    int32  code         = 1; // 错误码，0 表示成功
+    string message      = 2; // 错误描述
+    string token        = 3;
+    int64  player_id    = 4;
+    int64  expires_at   = 5;
+    bool   is_new_player = 6;
 }
 
-// Register
+// REGISTER
 message RegisterRequest {
     string username = 1;
     string password = 2;
@@ -56,19 +60,33 @@ message RegisterRequest {
 }
 
 message RegisterResponse {
-    string token     = 1;
-    int64  player_id = 2;
+    int32  code      = 1; // 错误码，0 表示成功
+    string message   = 2; // 错误描述
+    string token     = 3;
+    int64  player_id = 4;
 }
 
-// Logout
+// LOGOUT
 message LogoutRequest {}
 
-// Token Refresh
+// TOKEN_REFRESH
 message TokenRefreshRequest {
     string token = 1;
 }
 
 message TokenRefreshResponse {
-    string token      = 1;
-    int64  expires_at = 2;
+    int32  code       = 1; // 错误码，0 表示成功
+    string message    = 2; // 错误描述
+    string token      = 3;
+    int64  expires_at = 4;
+}
+
+// KICK
+enum KickReason {
+    KICK_REASON_UNSPECIFIED = 0;    // proto3 要求首个值为 0
+    LoginElseWhere = 1;   // 在其它地方登录
+}
+
+message KickResponse {
+    KickReason reason = 1;
 }

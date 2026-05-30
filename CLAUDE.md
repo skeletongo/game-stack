@@ -85,16 +85,20 @@ module/<name>/
 
 ## 响应模式（proto codec）
 
-proto codec 下直接用 `ctx.Response(protoMsg)`，不用 `stack.RespondData` 等信封函数（`stack.Response` 不实现 `proto.Message`）：
+proto codec 下通过 `stack.ProtoResponse(ctx, msg)` 发送 proto 消息。
+
+每个 Response 前两个字段固定为 `code`(int32) + `message`(string)。成功时 `Code: stack.CodeOK`，错误时通过 `stack.ErrCode(err)` 从 `*stack.Code` 解包错误码：
 
 ```go
 // 成功
-ctx.Response(&auth.LoginResponse{Token: t, PlayerId: uid})
+stack.ProtoResponse(ctx, &auth.LoginResponse{Code: stack.CodeOK, Token: t, PlayerId: uid})
 
-// 错误：nil + 日志
+// 错误
 log.Errorf("xxx failed: %v", err)
-ctx.Response(nil)
+stack.ProtoResponse(ctx, &auth.LoginResponse{Code: stack.ErrCode(err), Message: err.Error()})
 ```
+
+`stack.Response` 封装仅适用于 JSON codec（`stack.JSONRespond*` 系列函数）。proto codec 下该结构体不实现 `proto.Message` 会导致序列化失败。
 
 ## 路由编号
 

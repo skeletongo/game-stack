@@ -5,21 +5,8 @@
 package domain
 
 import (
-	"errors"
-
 	"github.com/skeletongo/game-stack/ddd"
-)
-
-// 领域错误
-var (
-	ErrInvalidUsername = errors.New("username must be 1-32 characters")
-	ErrInvalidPassword = errors.New("password must be 6-128 characters")
-	ErrInvalidNickname = errors.New("nickname must be 1-16 characters")
-	ErrInvalidToken    = errors.New("invalid token")
-
-	ErrAccountBanned = errors.New("account is banned")
-	ErrWrongPassword = errors.New("wrong password")
-	ErrAccountExists = errors.New("account already exists")
+	"github.com/skeletongo/game-stack/stack"
 )
 
 // UserID 用户唯一标识值对象。
@@ -39,7 +26,7 @@ type Username string
 // NewUsername 创建用户名，校验长度。
 func NewUsername(s string) (Username, error) {
 	if len(s) == 0 || len(s) > 32 {
-		return "", ErrInvalidUsername
+		return "", stack.ErrInvalidUsername
 	}
 	return Username(s), nil
 }
@@ -68,7 +55,7 @@ type Nickname string
 // NewNickname 创建昵称，校验长度。
 func NewNickname(s string) (Nickname, error) {
 	if len(s) == 0 || len(s) > 16 {
-		return "", ErrInvalidNickname
+		return "", stack.ErrInvalidNickname
 	}
 	return Nickname(s), nil
 }

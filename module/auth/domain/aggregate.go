@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/skeletongo/game-stack/ddd"
+	"github.com/skeletongo/game-stack/stack"
 )
 
 // Account 是用户账户聚合根。
@@ -90,7 +91,7 @@ func (a *Account) VerifyPassword(password string) bool {
 // 前置条件：账户未被封禁。
 func (a *Account) Login(token Token, gid string) error {
 	if a.IsBanned() {
-		return ErrAccountBanned
+		return stack.ErrAccountBanned
 	}
 	a.token = token
 	a.onlineGID = gid

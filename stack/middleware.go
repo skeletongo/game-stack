@@ -17,7 +17,6 @@ func Recovery() func(ctx node.Context) {
 		defer func() {
 			if r := recover(); r != nil {
 				log.Errorf("panic recovered in route %d: %v", ctx.Route(), r)
-				RespondError(ctx, ErrInternalError)
 			}
 		}()
 		// 恢复后不做额外处理，让 due 框架继续执行下一个处理器
@@ -30,7 +29,7 @@ func Recovery() func(ctx node.Context) {
 func AuthRequired() func(ctx node.Context) {
 	return func(ctx node.Context) {
 		if ctx.UID() == 0 {
-			RespondError(ctx, ErrUnauthorized)
+			log.Warnf("[actor] auth required")
 			return
 		}
 		// 通过认证，due 框架自动继续执行

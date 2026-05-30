@@ -6,15 +6,16 @@ option go_package = "github.com/skeletongo/game-stack/proto/common";
 
 // SysError 系统级错误码（0-999），复用 HTTP 语义。
 enum SysError {
-    OK                 = 0;
-    INVALID_PARAM      = 400;
-    UNAUTHORIZED       = 401;
-    FORBIDDEN          = 403;
-    NOT_FOUND          = 404;
-    TIMEOUT            = 408;
-    DUPLICATE_REQUEST  = 429;
-    INTERNAL_ERROR     = 500;
-    SERVER_BUSY        = 503;
+    SYS_ERROR_UNSPECIFIED = 0;
+    OK                    = 1;
+    INVALID_PARAM         = 400;
+    UNAUTHORIZED          = 401;
+    FORBIDDEN             = 403;
+    NOT_FOUND             = 404;
+    TIMEOUT               = 408;
+    DUPLICATE_REQUEST     = 429;
+    INTERNAL_ERROR        = 500;
+    SERVER_BUSY           = 503;
 }
 
 // Pagination 通用分页参数。

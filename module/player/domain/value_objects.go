@@ -5,18 +5,8 @@
 package domain
 
 import (
-	"errors"
-
 	"github.com/skeletongo/game-stack/ddd"
-)
-
-// 领域错误
-var (
-	ErrInvalidNickname = errors.New("nickname must be 1-16 characters")
-	ErrInvalidLevel    = errors.New("level must be >= 1")
-	ErrNegativeGold    = errors.New("gold must be >= 0")
-	ErrNegativeDiamond = errors.New("diamond must be >= 0")
-	ErrNegativeExp     = errors.New("exp must be >= 0")
+	"github.com/skeletongo/game-stack/stack"
 )
 
 // PlayerID 玩家唯一标识值对象。
@@ -36,7 +26,7 @@ type Nickname string
 // NewNickname 创建昵称，校验长度。
 func NewNickname(s string) (Nickname, error) {
 	if len(s) == 0 || len(s) > 16 {
-		return "", ErrInvalidNickname
+		return "", stack.ErrInvalidNickname
 	}
 	return Nickname(s), nil
 }
@@ -54,7 +44,7 @@ type Level int32
 // NewLevel 创建等级，校验 >= 1。
 func NewLevel(v int32) (Level, error) {
 	if v < 1 {
-		return 0, ErrInvalidLevel
+		return 0, stack.ErrInvalidLevel
 	}
 	return Level(v), nil
 }
@@ -73,7 +63,7 @@ type Gold int32
 // NewGold 创建金币，校验 >= 0。
 func NewGold(v int32) (Gold, error) {
 	if v < 0 {
-		return 0, ErrNegativeGold
+		return 0, stack.ErrInsufficientGold
 	}
 	return Gold(v), nil
 }
@@ -98,7 +88,7 @@ type Diamond int32
 // NewDiamond 创建钻石，校验 >= 0。
 func NewDiamond(v int32) (Diamond, error) {
 	if v < 0 {
-		return 0, ErrNegativeDiamond
+		return 0, stack.ErrInsufficientDiamond
 	}
 	return Diamond(v), nil
 }
@@ -123,7 +113,7 @@ type Exp int64
 // NewExp 创建经验值，校验 >= 0。
 func NewExp(v int64) (Exp, error) {
 	if v < 0 {
-		return 0, ErrNegativeExp
+		return 0, stack.ErrInvalidExp
 	}
 	return Exp(v), nil
 }

@@ -151,11 +151,11 @@ var HandlerStubTmpl = template.Must(template.New("handler").Parse(
 func (i *impl) handle{{.Action}}(ctx node.Context) {
 	req := &{{.PkgName}}.{{.Action}}Request{}
 	if err := ctx.Parse(req); err != nil {
-		stack.RespondError(ctx, stack.ErrInvalidParam)
+		stack.ProtoResponse(ctx, &{{.PkgName}}.{{.Action}}Response{Code: stack.ErrCode(err), Message: err.Error()})
 		return
 	}
 	// TODO: 实现 {{.Action}} 业务逻辑
-	stack.RespondOK(ctx)
+	stack.ProtoResponse(ctx, &{{.PkgName}}.{{.Action}}Response{Code: stack.CodeOK})
 }
 `) + "\n",
 ))
@@ -166,11 +166,11 @@ var HandlerStubActorTmpl = template.Must(template.New("handler_actor").Parse(
 func (i *impl) handle{{.Action}}Actor(ctx node.Context) {
 	req := &{{.PkgName}}.{{.Action}}Request{}
 	if err := ctx.Parse(req); err != nil {
-		stack.RespondError(ctx, stack.ErrInvalidParam)
+		stack.ProtoResponse(ctx, &{{.PkgName}}.{{.Action}}Response{Code: stack.ErrCode(err), Message: err.Error()})
 		return
 	}
 	// TODO: 实现 {{.Action}} Actor 业务逻辑
-	stack.RespondOK(ctx)
+	stack.ProtoResponse(ctx, &{{.PkgName}}.{{.Action}}Response{Code: stack.CodeOK})
 }
 `) + "\n",
 ))

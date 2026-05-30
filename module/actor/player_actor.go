@@ -26,8 +26,6 @@ import (
 
 	"github.com/dobyte/due/v2/cluster/node"
 	"github.com/dobyte/due/v2/log"
-
-	"github.com/skeletongo/game-stack/stack"
 )
 
 const KindPlayer = "player"
@@ -135,7 +133,7 @@ func RouteToActor(kind string) node.RouteHandler {
 	return func(ctx node.Context) {
 		uid := ctx.UID()
 		if uid == 0 {
-			stack.RespondError(ctx, stack.ErrUnauthorized)
+			log.Warnf("[actor] uid == 0")
 			return
 		}
 
@@ -146,7 +144,7 @@ func RouteToActor(kind string) node.RouteHandler {
 
 		act, ok := proxy.Actor(kind, id)
 		if !ok {
-			stack.RespondError(ctx, stack.ErrPlayerNotFound)
+			log.Warnf("[actor] actor %s not found uid: %d", kind, uid)
 			return
 		}
 		act.Next(ctx)

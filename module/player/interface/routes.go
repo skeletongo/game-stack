@@ -12,7 +12,9 @@ import (
 	"github.com/skeletongo/game-stack/ddd"
 	"github.com/skeletongo/game-stack/module/player/application"
 	"github.com/skeletongo/game-stack/module/player/domain"
+	"github.com/skeletongo/game-stack/proto/common"
 	"github.com/skeletongo/game-stack/proto/player"
+	"github.com/skeletongo/game-stack/stack"
 )
 
 // RouteHandlers 持有路由处理器所需的依赖。
@@ -38,7 +40,7 @@ func (h *RouteHandlers) HandleGetInfo(ctx node.Context) {
 	req := &player.GetInfoRequest{}
 	if err := ctx.Parse(req); err != nil {
 		log.Errorf("[player] HandleGetInfo parse failed: %v", err)
-		ctx.Response(nil)
+		stack.ProtoResponse(ctx, &player.GetInfoResponse{Code: int32(common.SysError_INVALID_PARAM), Message: err.Error()})
 		return
 	}
 	pid := req.PlayerId
@@ -48,10 +50,10 @@ func (h *RouteHandlers) HandleGetInfo(ctx node.Context) {
 	p, err := h.GetInfo.GetPlayer(ctx.Context(), pid)
 	if err != nil {
 		log.Errorf("[player] HandleGetInfo load failed: %v", err)
-		ctx.Response(nil)
+		stack.ProtoResponse(ctx, &player.GetInfoResponse{Code: stack.ErrCode(err), Message: err.Error()})
 		return
 	}
-	ctx.Response(&player.GetInfoResponse{Player: application.PlayerToProto(p)})
+	stack.ProtoResponse(ctx, &player.GetInfoResponse{Code: stack.CodeOK, Player: application.PlayerToProto(p)})
 }
 
 // ---- Actor 路由处理器（走 Actor 串行化）----
@@ -61,14 +63,14 @@ func (h *RouteHandlers) HandleSetAvatarActor(ctx node.Context) {
 	req := &player.SetAvatarRequest{}
 	if err := ctx.Parse(req); err != nil {
 		log.Errorf("[player] HandleSetAvatar parse failed: %v", err)
-		ctx.Response(nil)
+		stack.ProtoResponse(ctx, &player.SetAvatarResponse{Code: int32(common.SysError_INVALID_PARAM), Message: err.Error()})
 		return
 	}
 	cmd := application.SetAvatarCmd{PlayerID: ctx.UID(), Avatar: req.Avatar}
 	if err := h.CmdBus.Dispatch(ctx.Context(), cmd); err != nil {
 		log.Errorf("[player] set avatar failed: uid=%d err=%v", ctx.UID(), err)
-		ctx.Response(nil)
+		stack.ProtoResponse(ctx, &player.SetAvatarResponse{Code: stack.ErrCode(err), Message: err.Error()})
 		return
 	}
-	ctx.Response(nil)
+	stack.ProtoResponse(ctx, &player.SetAvatarResponse{Code: stack.CodeOK})
 }
