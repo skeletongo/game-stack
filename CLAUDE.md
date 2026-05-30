@@ -54,6 +54,7 @@ module/<name>/
 │   ├── player.proto
 │   └── server.go
 ├── module.go              # Module 构造函数 + 依赖注入装配
+├── adapter.go             # 框架适配器（CleanableService / 跨模块 Service）
 └── option.go              # 函数式选项（WithRepository）
 ```
 
