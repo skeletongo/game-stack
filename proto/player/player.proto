@@ -9,9 +9,9 @@ option go_package = "github.com/skeletongo/game-stack/proto/player";
 // PlayerRoute 玩家模块路由编号（2000-2999）。
 enum PlayerRoute {
     PLAYER_ROUTE_UNSPECIFIED = 0;  // proto3 要求首个值为 0
-    GET_INFO                 = 2001; // 查询玩家信息
-    SET_AVATAR               = 2002; // 修改头像
-    LEVEL_UP                 = 2003; // 升级推送
+    GET_INFO                 = 2000; // 查询玩家信息
+    SET_AVATAR               = 2001; // 修改头像
+    LEVEL_UP                 = 2002; // 升级推送
 }
 
 // ==== 错误码 ====

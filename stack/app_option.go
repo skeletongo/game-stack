@@ -26,12 +26,12 @@ type appOptions struct {
 	weight      int
 	metadata    map[string]string
 	modules     []Module
+	debugAddr   string // 不为空时启动 debug HTTP 服务
 }
 
 func defaultAppOptions() *appOptions {
 	return &appOptions{
-		name:        "game-node",
-		connNum:     10000,
+		connNum:     5,
 		callTimeout: 3 * time.Second,
 		dialTimeout: 3 * time.Second,
 		weight:      100,
@@ -109,4 +109,10 @@ func WithMetadata(m map[string]string) AppOption {
 // WithModules 设置要加载的游戏模块列表。
 func WithModules(modules ...Module) AppOption {
 	return func(o *appOptions) { o.modules = modules }
+}
+
+// WithDebug 启用 debug HTTP 服务（开发调试用）。
+// addr 如 "127.0.0.1:6060"。不设置则不启动。
+func WithDebug(addr string) AppOption {
+	return func(o *appOptions) { o.debugAddr = addr }
 }

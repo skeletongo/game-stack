@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package player;
 
-option go_package = "github.com/skeletongo/game-stack/module/player";
+option go_package = "github.com/skeletongo/game-stack/module/player/grpc";
 
 service Player {
     rpc GetPlayer(GetPlayerReq) returns (GetPlayerResp);

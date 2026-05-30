@@ -4,7 +4,7 @@
 // - protoc             v3.20.3
 // source: module/player/player.proto
 
-package player
+package grpc
 
 import (
 	context "context"

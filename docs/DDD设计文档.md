@@ -344,7 +344,9 @@ module/player/
 │   └── repo_redis.go          # Redis 仓储实现（可选）
 ├── interface/                 # 接口层
 │   ├── routes.go              # 路由处理器（薄层，解析 proto → 构建 Command → 投递）
-│   └── grpc.go                # gRPC handler 适配
+├── grpc/                      # gRPC 适配（如有）
+│   ├── player.proto
+│   └── server.go
 └── module.go                  # Module 构造函数，装配依赖注入
 ```
 
@@ -422,7 +424,6 @@ Interface ──→ Application ──→ Domain ←── Infrastructure
 | Infrastructure | `infrastructure/repo_memory.go` | 内存仓储实现 |
 | Infrastructure | `infrastructure/repo_redis.go` | Redis 仓储实现（可选） |
 | Interface | `interface/routes.go` | 路由处理器（薄层） |
-| Interface | `interface/grpc.go` | gRPC 服务适配 |
 | Root | `module.go` | 模块构造函数 + Init（依赖注入装配） |
 
 ### 5.2 命名规范

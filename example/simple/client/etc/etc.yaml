@@ -1,0 +1,35 @@
+pid: ./run/client.pid
+timezone: Local
+
+cluster:
+  client:
+    codec: proto
+    id: ''
+    name: client
+
+log:
+  callerFullPath: false
+  classifiedStorage: false
+  file: ./log/due.log
+  fileCutRule: day
+  fileMaxAge: 7d
+  fileMaxSize: 100
+  format: text
+  level: debug
+  stackLevel: error
+  stdout: true
+  timeFormat: 2006/01/02 15:04:05.000000
+
+mode: debug
+network:
+  ws:
+    client:
+      handshakeTimeout: 10s
+      heartbeatInterval: 10s
+      url: ws://127.0.0.1:60001
+
+packet:
+  bufferBytes: 100000
+  byteOrder: big
+  routeBytes: 4
+  seqBytes: 4

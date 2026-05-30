@@ -1,0 +1,65 @@
+pid: ./run/gate.pid
+mode: debug
+timezone: Local
+
+cluster:
+  gate:
+    id:
+    name: gate
+    # 内建RPC服务器监听地址。不填写默认随机监听
+    addr: :0
+    timeout: 1s
+
+locate:
+  redis:
+    addrs:
+      - 127.0.0.1:6379
+    db: 4
+    username: ""
+    password: ""
+    maxRetries: 3
+    prefix: due
+
+registry:
+  etcd:
+    addrs:
+      - 127.0.0.1:2379
+    dialTimeout: 5s
+    namespace: game-stack
+    timeout: 3s
+    retryTimes: 3
+    retryInterval: 10s
+
+network:
+  ws:
+    server:
+      addr: :60001
+      path: /
+      maxConnNum: 5000
+      keyFile: ""
+      certFile: ""
+      origins:
+        - "*"
+      handshakeTimeout: 10s
+      heartbeatInterval: 300s
+      heartbeatMechanism: resp
+
+packet:
+  byteOrder: big
+  routeBytes: 4
+  seqBytes: 4
+  bufferBytes: 100000
+  heartbeatTime: true
+
+log:
+  file: ./log/due.log
+  level: debug
+  format: text
+  stdout: true
+  timeFormat: 2006/01/02 15:04:05.000000
+  stackLevel: error
+  fileMaxAge: 7d
+  fileMaxSize: 100
+  fileCutRule: day
+  callerFullPath: true
+  classifiedStorage: false

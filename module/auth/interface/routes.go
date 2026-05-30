@@ -7,8 +7,6 @@
 package interfaces
 
 import (
-	"context"
-	"errors"
 	"time"
 
 	"github.com/dobyte/due/v2/cluster/node"
@@ -16,7 +14,6 @@ import (
 
 	"github.com/skeletongo/game-stack/module/actor"
 	"github.com/skeletongo/game-stack/module/auth/application"
-	"github.com/skeletongo/game-stack/module/auth/domain"
 	"github.com/skeletongo/game-stack/proto/auth"
 	"github.com/skeletongo/game-stack/stack"
 )
@@ -50,37 +47,36 @@ func NewHandlers(
 //
 // 流程：验证凭证 → 网关绑定 → 检查重连状态 → 节点绑定/Actor创建 → 响应。
 func (h *Handlers) HandleLogin(ctx node.Context) {
+	log.Infof("[auth] HandleLogin called: uid=%d cid=%d", ctx.UID(), ctx.CID())
+
 	req := &auth.LoginRequest{}
 	if err := ctx.Parse(req); err != nil {
-		stack.RespondError(ctx, stack.ErrInvalidParam)
+		log.Errorf("[auth] HandleLogin parse failed: %v", err)
+		ctx.Response(nil)
 		return
 	}
 	if req.Username == "" || req.Password == "" {
-		stack.RespondError(ctx, stack.ErrInvalidParam)
+		ctx.Response(nil)
 		return
 	}
-	result, err := h.login.Handle(context.Background(), application.LoginCmd{Username: req.Username, Password: req.Password})
+	result, err := h.login.Handle(ctx.Context(), application.LoginCmd{Username: req.Username, Password: req.Password})
 	if err != nil {
-		switch {
-		case errors.Is(err, domain.ErrWrongPassword):
-			stack.RespondError(ctx, stack.ErrWrongPassword)
-		case errors.Is(err, domain.ErrAccountBanned):
-			stack.RespondError(ctx, stack.ErrAccountBanned)
-		default:
-			stack.RespondError(ctx, stack.ErrInternalError)
-		}
+		log.Errorf("[auth] HandleLogin failed: %v", err)
+		ctx.Response(nil)
 		return
 	}
 	if err := ctx.BindGate(result.UserID); err != nil {
-		stack.RespondError(ctx, stack.ErrInternalError)
+		log.Errorf("[auth] HandleLogin BindGate failed: %v", err)
+		ctx.Response(nil)
 		return
 	}
-	boundNid, err := h.proxy.LocateNode(context.Background(), result.UserID, h.proxy.GetName())
+	boundNid, err := h.proxy.LocateNode(ctx.Context(), result.UserID, h.proxy.GetName())
 	isReconnect := err == nil && boundNid != ""
 	if !isReconnect {
 		// 首次登录：绑定当前节点 + 创建 Actor
 		if err := ctx.BindNode(result.UserID); err != nil {
-			stack.RespondError(ctx, stack.ErrInternalError)
+			log.Errorf("[auth] HandleLogin BindNode failed: %v", err)
+			ctx.Response(nil)
 			return
 		}
 		h.cleaner.OnLogin(result.UserID)
@@ -97,74 +93,78 @@ func (h *Handlers) HandleLogin(ctx node.Context) {
 		}
 	}
 	// 重连且绑定在其他节点：不操作，旧节点通过 Connect 事件感知
-	stack.RespondData(ctx, &auth.LoginResponse{
-		Token: result.Token, PlayerId: result.UserID,
+	ctx.Response(&auth.LoginResponse{
+		Token:     result.Token,
+		PlayerId:  result.UserID,
 		ExpiresAt: time.Now().Add(24 * time.Hour).Unix(),
 	})
 }
 
 // HandleRegister 处理注册请求（无状态路由）。
 func (h *Handlers) HandleRegister(ctx node.Context) {
+	log.Infof("[auth] HandleRegister called: uid=%d cid=%d route=%d", ctx.UID(), ctx.CID(), ctx.Route())
+
 	req := &auth.RegisterRequest{}
 	if err := ctx.Parse(req); err != nil {
-		stack.RespondError(ctx, stack.ErrInvalidParam)
+		log.Errorf("[auth] HandleRegister parse failed: %v", err)
+		ctx.Response(nil)
 		return
 	}
 	if req.Username == "" || req.Password == "" {
-		stack.RespondError(ctx, stack.ErrInvalidParam)
+		ctx.Response(nil)
 		return
 	}
 	if req.Nickname == "" {
 		req.Nickname = req.Username
 	}
-	result, err := h.register.Handle(context.Background(), application.RegisterCmd{
+	result, err := h.register.Handle(ctx.Context(), application.RegisterCmd{
 		Username: req.Username, Password: req.Password, Nickname: req.Nickname,
 	})
 	if err != nil {
-		switch {
-		case errors.Is(err, domain.ErrAccountExists):
-			stack.RespondError(ctx, stack.ErrAccountExists)
-		default:
-			stack.RespondError(ctx, stack.ErrInternalError)
-		}
+		log.Errorf("[auth] HandleRegister failed: %v", err)
+		ctx.Response(nil)
 		return
 	}
 	if err := ctx.BindGate(result.UserID); err != nil {
-		stack.RespondError(ctx, stack.ErrInternalError)
+		log.Errorf("[auth] HandleRegister BindGate failed: %v", err)
+		ctx.Response(nil)
 		return
 	}
 	if err := ctx.BindNode(result.UserID); err != nil {
-		stack.RespondError(ctx, stack.ErrInternalError)
+		log.Errorf("[auth] HandleRegister BindNode failed: %v", err)
+		ctx.Response(nil)
 		return
 	}
 	h.cleaner.OnLogin(result.UserID)
 	if _, err := actor.SpawnPlayer(h.proxy, result.UserID); err != nil {
 		log.Errorf("spawn player actor failed: uid=%d err=%v", result.UserID, err)
 	}
-	stack.RespondData(ctx, &auth.RegisterResponse{Token: result.Token, PlayerId: result.UserID})
+	ctx.Response(&auth.RegisterResponse{Token: result.Token, PlayerId: result.UserID})
 }
 
 // HandleLogout 处理登出请求。
 func (h *Handlers) HandleLogout(ctx node.Context) {
-	_ = h.logout.Handle(context.Background(), application.LogoutCmd{UserID: ctx.UID()})
-	stack.RespondOK(ctx)
+	_ = h.logout.Handle(ctx.Context(), application.LogoutCmd{UserID: ctx.UID()})
+	ctx.Response(nil)
 }
 
 // HandleRefresh 处理令牌刷新请求。
 func (h *Handlers) HandleRefresh(ctx node.Context) {
 	req := &auth.TokenRefreshRequest{}
 	if err := ctx.Parse(req); err != nil {
-		stack.RespondError(ctx, stack.ErrInvalidParam)
+		log.Errorf("[auth] HandleRefresh parse failed: %v", err)
+		ctx.Response(nil)
 		return
 	}
-	result, err := h.refresh.Handle(context.Background(), application.RefreshTokenCmd{
+	result, err := h.refresh.Handle(ctx.Context(), application.RefreshTokenCmd{
 		UserID: ctx.UID(), Token: req.Token,
 	})
 	if err != nil {
-		stack.RespondError(ctx, stack.ErrInvalidToken)
+		log.Errorf("[auth] HandleRefresh failed: %v", err)
+		ctx.Response(nil)
 		return
 	}
-	stack.RespondData(ctx, &auth.TokenRefreshResponse{Token: result.Token, ExpiresAt: result.ExpiresAt})
+	ctx.Response(&auth.TokenRefreshResponse{Token: result.Token, ExpiresAt: result.ExpiresAt})
 }
 
 // HandleConnect 处理集群 Connect 事件。

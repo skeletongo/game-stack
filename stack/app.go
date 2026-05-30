@@ -4,13 +4,14 @@ import (
 	"github.com/dobyte/due/v2"
 	"github.com/dobyte/due/v2/cluster/node"
 	"github.com/dobyte/due/v2/log"
+
+	"github.com/skeletongo/game-stack/stack/debug"
 )
 
 // Application 是 game-stack 框架的应用入口。
 // 封装 due Container，提供简化的启动引导和模块管理。
 type Application struct {
-	opts    *appOptions
-	modules []Module
+	opts *appOptions
 }
 
 // NewApplication 创建一个 game-stack 应用。
@@ -45,11 +46,16 @@ func (a *Application) Run() {
 
 	proxy := n.Proxy()
 
-	for _, m := range a.modules {
+	for _, m := range a.opts.modules {
 		log.Infof("initializing module: %s", m.Name())
 		if err := m.Init(proxy); err != nil {
 			log.Fatalf("module %s init failed: %v", m.Name(), err)
 		}
+	}
+
+	// 启动 debug HTTP 服务（可选）
+	if a.opts.debugAddr != "" {
+		debug.NewServer(a.opts.debugAddr).StartAsync()
 	}
 
 	container.Add(n)
@@ -58,10 +64,11 @@ func (a *Application) Run() {
 
 // buildNode 根据选项构建 due Node 组件。
 func (a *Application) buildNode() *node.Node {
-	opts := []node.Option{
-		node.WithName(a.opts.name),
-	}
+	var opts []node.Option
 
+	if a.opts.name != "" {
+		opts = append(opts, node.WithName(a.opts.name))
+	}
 	if a.opts.id != "" {
 		opts = append(opts, node.WithID(a.opts.id))
 	}

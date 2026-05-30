@@ -126,15 +126,11 @@ func InvokePlayer(proxy *node.Proxy, uid int64, fn func()) {
 
 // RouteToActor 返回一个 Node 路由处理器，将消息投递到 Actor mailbox 串行处理。
 //
-// 在投递前校验玩家归属权：如果玩家已绑定到其他节点（Disconnect 事件丢失的场景），
-// 立即杀死本地残留 Actor，返回错误。这提供了一个不依赖 Disconnect 事件、
-// 不依赖 Redis Pub/Sub 的兜底安全网。
+// 归属权由 due 框架的 StatefulRoute 保证——gate 通过 Locator 定位玩家
+// 绑定节点后才投递，消息不会到达旧节点。
 //
-// 配合 StatefulAuthorizedRoute，消息先路由到玩家节点，再投递到 Actor。
-// ctx.Response() 会在 Actor 的 dispatch goroutine 中执行。
-//
-// 使用 RouteToActor 时，必须同时调用 RegisterRouteInitializer
-// 为 Actor 注册实际的路由处理器。
+// 配合 StatefulAuthorizedRoute 使用。使用 RouteToActor 时，必须同时调用
+// RegisterRouteInitializer 为 Actor 注册实际的路由处理器。
 func RouteToActor(kind string) node.RouteHandler {
 	return func(ctx node.Context) {
 		uid := ctx.UID()
@@ -143,19 +139,10 @@ func RouteToActor(kind string) node.RouteHandler {
 			return
 		}
 
+		// 归属权由 due 的 StatefulRoute 保证——gate 通过 Locator 定位
+		// 玩家绑定节点后才投递消息，消息不会到达旧节点。
 		proxy := ctx.Proxy()
 		id := strconv.FormatInt(uid, 10)
-
-		// 防御性检查：玩家是否仍绑定在本节点
-		// 场景：disconnect 事件丢失、Pub/Sub 延迟 → 旧节点 Actor 残留
-		// LocateNode 优先读本地缓存（毫秒级），缓存命中且玩家已迁移时能立即发现
-		if nid, err := proxy.LocateNode(context.Background(), uid, proxy.GetName()); err == nil && nid != "" && nid != proxy.GetID() {
-			log.Warnf("[actor] ownership lost, killing stale actor: uid=%d bound_nid=%s my_nid=%s", uid, nid, proxy.GetID())
-			proxy.UnbindActor(uid, kind)
-			proxy.Kill(kind, id)
-			stack.RespondError(ctx, stack.ErrPlayerNotFound)
-			return
-		}
 
 		act, ok := proxy.Actor(kind, id)
 		if !ok {

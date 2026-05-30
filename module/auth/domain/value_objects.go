@@ -31,6 +31,7 @@ func (id UserID) Equals(other ddd.ValueObject) bool {
 	o, ok := other.(UserID)
 	return ok && id == o
 }
+func (id UserID) Scalar() any { return int64(id) }
 
 // Username 用户名值对象（1-32 字符）。
 type Username string
@@ -48,6 +49,7 @@ func (u Username) Equals(other ddd.ValueObject) bool {
 	o, ok := other.(Username)
 	return ok && u == o
 }
+func (u Username) Scalar() any { return string(u) }
 
 // PasswordHash 密码 SHA256 哈希值对象。
 // 原始密码从不存储，只保留哈希。
@@ -58,6 +60,7 @@ func (p PasswordHash) Equals(other ddd.ValueObject) bool {
 	o, ok := other.(PasswordHash)
 	return ok && p == o
 }
+func (p PasswordHash) Scalar() any { return string(p) }
 
 // Nickname 昵称值对象（1-16 字符）。
 type Nickname string
@@ -75,6 +78,7 @@ func (n Nickname) Equals(other ddd.ValueObject) bool {
 	o, ok := other.(Nickname)
 	return ok && n == o
 }
+func (n Nickname) Scalar() any { return string(n) }
 
 // Token 认证令牌值对象（32 字节随机 hex）。
 type Token string
@@ -88,3 +92,4 @@ func (t Token) Equals(other ddd.ValueObject) bool {
 	o, ok := other.(Token)
 	return ok && t == o
 }
+func (t Token) Scalar() any { return string(t) }

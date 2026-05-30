@@ -28,6 +28,7 @@ func (id PlayerID) Equals(other ddd.ValueObject) bool {
 	o, ok := other.(PlayerID)
 	return ok && id == o
 }
+func (id PlayerID) Scalar() any { return int64(id) }
 
 // Nickname 玩家昵称值对象（1-16 字符）。
 type Nickname string
@@ -45,6 +46,7 @@ func (n Nickname) Equals(other ddd.ValueObject) bool {
 	o, ok := other.(Nickname)
 	return ok && n == o
 }
+func (n Nickname) Scalar() any { return string(n) }
 
 // Level 玩家等级值对象（>= 1）。
 type Level int32
@@ -62,6 +64,7 @@ func (l Level) Equals(other ddd.ValueObject) bool {
 	o, ok := other.(Level)
 	return ok && l == o
 }
+func (l Level) Scalar() any { return int32(l) }
 
 // Gold 金币值对象（>= 0）。
 // 封装 Add/Subtract 操作，确保不变量。
@@ -87,6 +90,7 @@ func (g Gold) Equals(other ddd.ValueObject) bool {
 	o, ok := other.(Gold)
 	return ok && g == o
 }
+func (g Gold) Scalar() any { return int32(g) }
 
 // Diamond 钻石值对象（>= 0）。
 type Diamond int32
@@ -111,6 +115,7 @@ func (d Diamond) Equals(other ddd.ValueObject) bool {
 	o, ok := other.(Diamond)
 	return ok && d == o
 }
+func (d Diamond) Scalar() any { return int32(d) }
 
 // Exp 经验值值对象（>= 0）。
 type Exp int64
@@ -132,6 +137,7 @@ func (e Exp) Equals(other ddd.ValueObject) bool {
 	o, ok := other.(Exp)
 	return ok && e == o
 }
+func (e Exp) Scalar() any { return int64(e) }
 
 // Avatar 头像 URL 值对象。
 type Avatar string
@@ -141,3 +147,4 @@ func (a Avatar) Equals(other ddd.ValueObject) bool {
 	o, ok := other.(Avatar)
 	return ok && a == o
 }
+func (a Avatar) Scalar() any { return string(a) }

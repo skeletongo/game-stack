@@ -12,7 +12,7 @@ import (
 
 func main() {
 	app := stack.NewApplication(
-		stack.WithName("game-node"),
+		stack.WithName("server"),
 		stack.WithLocator(redis.NewLocator()),
 		stack.WithRegistry(etcd.NewRegistry()),
 		stack.WithTransporter(grpc.NewTransporter()),

@@ -1,0 +1,284 @@
+{
+    "swagger": "2.0",
+    "info": {
+        "description": "开发调试接口：运行时查询聚合数据、执行命令、直接修改内存字段。\n默认监听 127.0.0.1:6060，仅开发环境启用。",
+        "title": "game-stack Debug API",
+        "contact": {},
+        "version": "1.0.0"
+    },
+    "host": "127.0.0.1:6060",
+    "paths": {
+        "/debug/command": {
+            "post": {
+                "description": "通过 CommandBus 执行已注册的命令。命令处理器自动发布领域事件。\n命令列表可通过 GET /debug/module/{name} 查询。",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "command"
+                ],
+                "summary": "执行命令",
+                "parameters": [
+                    {
+                        "description": "命令请求",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/debug.commandRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "执行成功",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "boolean"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "参数错误",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "模块或命令不存在",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/debug/module/{name}": {
+            "get": {
+                "description": "返回指定模块的查询能力和可用命令列表。",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "discover"
+                ],
+                "summary": "列出模块能力",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "模块名称（如 player）",
+                        "name": "name",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "404": {
+                        "description": "模块不存在",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/debug/modules": {
+            "get": {
+                "description": "返回所有已通过 debug.Register 注册的模块名称列表。",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "discover"
+                ],
+                "summary": "列出所有已注册模块",
+                "responses": {
+                    "200": {
+                        "description": "模块名称列表",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/debug/patch": {
+            "post": {
+                "description": "用 unsafe 绕过导出限制直接写内存。不经过构造校验，不维护不变量。仅用于调试。\n写操作不走 Actor 串行化，玩家在线时可能产生竞态。",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "patch"
+                ],
+                "summary": "直接修改聚合字段",
+                "parameters": [
+                    {
+                        "description": "patch 请求",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/debug.patchRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "修改后的快照",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "字段不存在或类型错误",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "模块或聚合不存在",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/debug/query": {
+            "post": {
+                "description": "返回聚合所有非导出字段的当前值。值对象自动展开为原始类型（Gold(999) → 999）。",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "query"
+                ],
+                "summary": "查询聚合完整快照",
+                "parameters": [
+                    {
+                        "description": "查询请求",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/debug.queryRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "聚合快照",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "参数错误",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "模块或聚合不存在",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "debug.commandRequest": {
+            "type": "object",
+            "properties": {
+                "cmd": {
+                    "type": "string",
+                    "example": "add_gold"
+                },
+                "module": {
+                    "type": "string",
+                    "example": "player"
+                },
+                "params": {
+                    "type": "object",
+                    "additionalProperties": {}
+                }
+            }
+        },
+        "debug.patchRequest": {
+            "type": "object",
+            "properties": {
+                "fields": {
+                    "type": "object",
+                    "additionalProperties": {}
+                },
+                "id": {
+                    "type": "integer",
+                    "example": 12345
+                },
+                "module": {
+                    "type": "string",
+                    "example": "player"
+                }
+            }
+        },
+        "debug.queryRequest": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "integer",
+                    "example": 12345
+                },
+                "module": {
+                    "type": "string",
+                    "example": "player"
+                }
+            }
+        }
+    }
+}

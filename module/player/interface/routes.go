@@ -6,8 +6,6 @@
 package interfaces
 
 import (
-	"context"
-
 	"github.com/dobyte/due/v2/cluster/node"
 	"github.com/dobyte/due/v2/log"
 
@@ -15,7 +13,6 @@ import (
 	"github.com/skeletongo/game-stack/module/player/application"
 	"github.com/skeletongo/game-stack/module/player/domain"
 	"github.com/skeletongo/game-stack/proto/player"
-	"github.com/skeletongo/game-stack/stack"
 )
 
 // RouteHandlers 持有路由处理器所需的依赖。
@@ -40,19 +37,21 @@ func NewRouteHandlers(cmdBus *ddd.CommandBus, repo domain.PlayerRepository) *Rou
 func (h *RouteHandlers) HandleGetInfo(ctx node.Context) {
 	req := &player.GetInfoRequest{}
 	if err := ctx.Parse(req); err != nil {
-		stack.RespondError(ctx, stack.ErrInvalidParam)
+		log.Errorf("[player] HandleGetInfo parse failed: %v", err)
+		ctx.Response(nil)
 		return
 	}
 	pid := req.PlayerId
 	if pid == 0 {
 		pid = ctx.UID()
 	}
-	p, err := h.GetInfo.GetPlayer(context.Background(), pid)
+	p, err := h.GetInfo.GetPlayer(ctx.Context(), pid)
 	if err != nil {
-		stack.RespondError(ctx, stack.ErrPlayerNotFound)
+		log.Errorf("[player] HandleGetInfo load failed: %v", err)
+		ctx.Response(nil)
 		return
 	}
-	stack.RespondData(ctx, &player.GetInfoResponse{Player: application.PlayerToProto(p)})
+	ctx.Response(&player.GetInfoResponse{Player: application.PlayerToProto(p)})
 }
 
 // ---- Actor 路由处理器（走 Actor 串行化）----
@@ -61,14 +60,15 @@ func (h *RouteHandlers) HandleGetInfo(ctx node.Context) {
 func (h *RouteHandlers) HandleSetAvatarActor(ctx node.Context) {
 	req := &player.SetAvatarRequest{}
 	if err := ctx.Parse(req); err != nil {
-		stack.RespondError(ctx, stack.ErrInvalidParam)
+		log.Errorf("[player] HandleSetAvatar parse failed: %v", err)
+		ctx.Response(nil)
 		return
 	}
 	cmd := application.SetAvatarCmd{PlayerID: ctx.UID(), Avatar: req.Avatar}
-	if err := h.CmdBus.Dispatch(context.Background(), cmd); err != nil {
+	if err := h.CmdBus.Dispatch(ctx.Context(), cmd); err != nil {
 		log.Errorf("[player] set avatar failed: uid=%d err=%v", ctx.UID(), err)
-		stack.RespondError(ctx, stack.ErrInternalError)
+		ctx.Response(nil)
 		return
 	}
-	stack.RespondOK(ctx)
+	ctx.Response(nil)
 }

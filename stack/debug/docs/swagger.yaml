@@ -1,0 +1,195 @@
+definitions:
+  debug.commandRequest:
+    properties:
+      cmd:
+        example: add_gold
+        type: string
+      module:
+        example: player
+        type: string
+      params:
+        additionalProperties: {}
+        type: object
+    type: object
+  debug.patchRequest:
+    properties:
+      fields:
+        additionalProperties: {}
+        type: object
+      id:
+        example: 12345
+        type: integer
+      module:
+        example: player
+        type: string
+    type: object
+  debug.queryRequest:
+    properties:
+      id:
+        example: 12345
+        type: integer
+      module:
+        example: player
+        type: string
+    type: object
+host: 127.0.0.1:6060
+info:
+  contact: {}
+  description: |-
+    开发调试接口：运行时查询聚合数据、执行命令、直接修改内存字段。
+    默认监听 127.0.0.1:6060，仅开发环境启用。
+  title: game-stack Debug API
+  version: 1.0.0
+paths:
+  /debug/command:
+    post:
+      consumes:
+      - application/json
+      description: |-
+        通过 CommandBus 执行已注册的命令。命令处理器自动发布领域事件。
+        命令列表可通过 GET /debug/module/{name} 查询。
+      parameters:
+      - description: 命令请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/debug.commandRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 执行成功
+          schema:
+            additionalProperties:
+              type: boolean
+            type: object
+        "400":
+          description: 参数错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: 模块或命令不存在
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: 执行命令
+      tags:
+      - command
+  /debug/module/{name}:
+    get:
+      description: 返回指定模块的查询能力和可用命令列表。
+      parameters:
+      - description: 模块名称（如 player）
+        in: path
+        name: name
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: 模块不存在
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: 列出模块能力
+      tags:
+      - discover
+  /debug/modules:
+    get:
+      description: 返回所有已通过 debug.Register 注册的模块名称列表。
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 模块名称列表
+          schema:
+            items:
+              type: string
+            type: array
+      summary: 列出所有已注册模块
+      tags:
+      - discover
+  /debug/patch:
+    post:
+      consumes:
+      - application/json
+      description: |-
+        用 unsafe 绕过导出限制直接写内存。不经过构造校验，不维护不变量。仅用于调试。
+        写操作不走 Actor 串行化，玩家在线时可能产生竞态。
+      parameters:
+      - description: patch 请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/debug.patchRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 修改后的快照
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: 字段不存在或类型错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: 模块或聚合不存在
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: 直接修改聚合字段
+      tags:
+      - patch
+  /debug/query:
+    post:
+      consumes:
+      - application/json
+      description: 返回聚合所有非导出字段的当前值。值对象自动展开为原始类型（Gold(999) → 999）。
+      parameters:
+      - description: 查询请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/debug.queryRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 聚合快照
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: 参数错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: 模块或聚合不存在
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: 查询聚合完整快照
+      tags:
+      - query
+swagger: "2.0"

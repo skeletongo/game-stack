@@ -20,6 +20,7 @@ import (
 	"github.com/skeletongo/game-stack/module/auth/domain"
 	interfaces "github.com/skeletongo/game-stack/module/auth/interface"
 	"github.com/skeletongo/game-stack/stack"
+	"github.com/skeletongo/game-stack/stack/debug"
 )
 
 const name = "auth"
@@ -82,6 +83,9 @@ func (m *authModule) Init(proxy *node.Proxy) error {
 
 	// 注册跨模块 Service（供其他模块通过 stack.GetService("auth") 获取）
 	stack.RegisterService(name, &svcAdapter{repo: repo})
+
+	// 注册到 debug 服务（运行时查询/修改数据。auth 无 CommandBus，只支持 query 和 patch）
+	debug.Register[*domain.Account](name, repo, nil)
 
 	log.Infof("[auth] module initialized (DDD)")
 	return nil

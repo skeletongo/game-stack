@@ -62,13 +62,13 @@ Node 的 `Proxy` 提供了多种跨节点通信方式：
 
 ### gRPC 服务调用 (Service Provider / Mesh Client)
 
-模块在 `Init` 中注册 gRPC 服务，其他节点通过 Mesh Client 直连调用。规范示例：`module/player/grpc.go`。
+模块在 `Init` 中注册 gRPC 服务，其他节点通过 Mesh Client 直连调用。规范示例：`module/player/grpc/server.go`。
 
 **服务端：**
 
 ```go
 // 在 Init 中调用
-player.RegisterGRPC(proxy, repo)
+player_grpc.Register(proxy, repo)
 ```
 
 **调用方 — 两种模式：**

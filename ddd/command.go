@@ -29,6 +29,12 @@ type CommandHandler[C Command] interface {
 	Handle(ctx context.Context, cmd C) error
 }
 
+// cmdEntry 存储 handler 和命令工厂函数。
+type cmdEntry struct {
+	handler any
+	newCmd  func() any // 返回 *C 零值指针，供 JSON 反序列化
+}
+
 // CommandBus 是限界上下文内部的命令总线。
 //
 // 职责：
@@ -37,31 +43,35 @@ type CommandHandler[C Command] interface {
 //
 // 线程安全：Register 通常在 Init 阶段调用（单线程），Dispatch 在 Actor goroutine 中调用。
 type CommandBus struct {
-	mu       sync.RWMutex
-	handlers map[string]any // command name → CommandHandler[C]
+	mu      sync.RWMutex
+	entries map[string]*cmdEntry // command name → entry
 }
 
 // NewCommandBus 创建新的命令总线。
 func NewCommandBus() *CommandBus {
 	return &CommandBus{
-		handlers: make(map[string]any),
+		entries: make(map[string]*cmdEntry),
 	}
 }
 
 // Register 注册命令处理器。
 //
-// handler 必须是 CommandHandler[C] 类型，C 必须是实现了 Command 接口的指针或值类型。
+// C 由 handler 参数自动推导。同时存入命令工厂函数，供 debug 服务反序列化参数。
+//
 // 使用示例：
 //
-//	bus.Register("UpdateProfile", &UpdateProfileHandler{playerRepo: repo})
-func (b *CommandBus) Register(cmdName string, handler any) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
+//	ddd.Register(cmdBus, "UpdateProfile", &UpdateProfileHandler{...})
+func Register[C Command](bus *CommandBus, cmdName string, handler CommandHandler[C]) {
+	bus.mu.Lock()
+	defer bus.mu.Unlock()
 
-	if _, ok := b.handlers[cmdName]; ok {
+	if _, ok := bus.entries[cmdName]; ok {
 		panic(fmt.Sprintf("command handler already registered: %s", cmdName))
 	}
-	b.handlers[cmdName] = handler
+	bus.entries[cmdName] = &cmdEntry{
+		handler: handler,
+		newCmd:  func() any { return new(C) },
+	}
 }
 
 // Dispatch 将命令分发到对应的处理器。
@@ -70,7 +80,7 @@ func (b *CommandBus) Register(cmdName string, handler any) {
 // 如果无匹配处理器，记录警告日志并返回 nil（静默忽略，不中断流程）。
 func (b *CommandBus) Dispatch(ctx context.Context, cmd Command) error {
 	b.mu.RLock()
-	handler, ok := b.handlers[cmd.CommandName()]
+	entry, ok := b.entries[cmd.CommandName()]
 	b.mu.RUnlock()
 
 	if !ok {
@@ -78,19 +88,38 @@ func (b *CommandBus) Dispatch(ctx context.Context, cmd Command) error {
 		return nil
 	}
 
-	// 类型断言由调用方保证正确性（Register 时由程序员负责类型匹配）
-	// 这里不做 reflect 动态调用，保持简单和性能
-	return invokeHandler(ctx, handler, cmd)
+	return invokeHandler(ctx, entry.handler, cmd)
+}
+
+// NewCommand 返回指定命令的零值指针（类型为 *Cmd）。不存在时返回 false。
+// 返回值可直接传给 json.Unmarshal 填充参数，再断言为 Command 传给 Dispatch。
+func (b *CommandBus) NewCommand(name string) (any, bool) {
+	b.mu.RLock()
+	defer b.mu.RUnlock()
+
+	entry, ok := b.entries[name]
+	if !ok {
+		return nil, false
+	}
+	return entry.newCmd(), true
+}
+
+// CommandNames 返回所有已注册命令名称。
+func (b *CommandBus) CommandNames() []string {
+	b.mu.RLock()
+	defer b.mu.RUnlock()
+
+	names := make([]string, 0, len(b.entries))
+	for name := range b.entries {
+		names = append(names, name)
+	}
+	return names
 }
 
 // invokeHandler 是一个类型擦除桥接函数。
-// 在 CommandBus 中使用 any 存储 handler，Dispatch 时通过此函数恢复类型。
-//
-// 使用泛型函数避免在每个 CommandBus 调用点写重复的类型断言代码。
 func invokeHandler[C Command](ctx context.Context, handler any, cmd C) error {
 	h, ok := handler.(CommandHandler[C])
 	if !ok {
-		// 这是编程错误：Register 的 handler 类型与 Command 类型不匹配
 		panic(fmt.Sprintf("handler type mismatch for command %s: expected CommandHandler[%T], got %T",
 			cmd.CommandName(), cmd, handler))
 	}

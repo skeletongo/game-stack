@@ -15,3 +15,10 @@ type ValueObject interface {
 	// Equals 按值比较两个值对象是否相等。
 	Equals(other ValueObject) bool
 }
+
+// Scalar 是值对象的可选接口。实现了 Scalar 的值对象可被 debug 服务
+// 自动展开为 JSON 原始类型（Gold(999) → 999），无需手写序列化。
+type Scalar interface {
+	// Scalar 返回值对象的底层 Go 值。
+	Scalar() any
+}
