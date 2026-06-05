@@ -8,15 +8,19 @@
 package player
 
 import (
+	"context"
+
 	"github.com/dobyte/due/v2/cluster/node"
 	"github.com/dobyte/due/v2/log"
+	"github.com/skeletongo/game-stack/module/clean"
 
 	"github.com/skeletongo/game-stack/ddd"
 	"github.com/skeletongo/game-stack/module/actor"
-	"github.com/skeletongo/game-stack/module/player/application"
-	"github.com/skeletongo/game-stack/module/player/domain"
-	grpc "github.com/skeletongo/game-stack/module/player/grpc"
-	interfaces "github.com/skeletongo/game-stack/module/player/interface"
+	"github.com/skeletongo/game-stack/module/player/internal/application"
+	"github.com/skeletongo/game-stack/module/player/internal/domain"
+	interfaces "github.com/skeletongo/game-stack/module/player/internal/interface"
+	rpcserver "github.com/skeletongo/game-stack/module/player/internal/rpc"
+	svcserver "github.com/skeletongo/game-stack/module/player/internal/svc"
 	"github.com/skeletongo/game-stack/stack"
 	"github.com/skeletongo/game-stack/stack/debug"
 )
@@ -57,6 +61,7 @@ func (m *playerModule) Init(proxy *node.Proxy) error {
 	cmdBus := ddd.NewCommandBus()
 
 	// ---- 应用层：注册命令处理器（内部 + 跨模块）----
+	ddd.Register(cmdBus, application.CmdCreatePlayer, &application.CreatePlayerHandler{Repo: repo})
 	ddd.Register(cmdBus, application.CmdSetAvatar, &application.SetAvatarHandler{Repo: repo})
 	ddd.Register(cmdBus, application.CmdAddExp, &application.AddExpHandler{Repo: repo, EventBus: eventBus})
 	ddd.Register(cmdBus, application.CmdAddGold, &application.AddGoldHandler{Repo: repo, EventBus: eventBus})
@@ -64,6 +69,7 @@ func (m *playerModule) Init(proxy *node.Proxy) error {
 	ddd.Register(cmdBus, application.CmdAddDiamond, &application.AddDiamondHandler{Repo: repo, EventBus: eventBus})
 	ddd.Register(cmdBus, application.CmdDeductDiamond, &application.DeductDiamondHandler{Repo: repo, EventBus: eventBus})
 	ddd.Register(cmdBus, application.CmdDeletePlayer, &application.DeletePlayerHandler{Repo: repo})
+	ddd.Register(cmdBus, application.CmdGetPlayer, &application.GetPlayerHandler{Repo: repo})
 
 	// ---- 接口层 ----
 	routes := interfaces.NewRouteHandlers(cmdBus, repo)
@@ -79,20 +85,29 @@ func (m *playerModule) Init(proxy *node.Proxy) error {
 		act.AddRouteHandler(stack.RoutePlayerSetAvatar, routes.HandleSetAvatarActor)
 	})
 
-	// 注册 gRPC 服务（供其他节点调用）
-	grpc.Register(name, proxy, repo)
+	// 注册 RPC 服务（供其他节点调用）
+	rpcserver.Register(name, proxy, repo)
 
 	// 注册清理回调（Grace Period 到期后清除玩家内存数据）
-	if c, ok := stack.GetService("cleaner").(*stack.PlayerDoneCleaner); ok {
-		c.Register(&cleanableAdapter{repo: repo})
-	}
+	cleaner := clean.Get()
+	cleaner.Register(&cleanableAdapter{repo: repo})
 
 	// 注册跨模块 Service（供其他模块通过 stack.GetService("player") 获取）
-	stack.RegisterService(name, &svcAdapter{repo: repo, cmdBus: cmdBus})
+	stack.RegisterService(name, svcserver.New(repo, cmdBus, proxy))
 
 	// 注册到 debug 服务（运行时查询/修改数据）
 	debug.Register[*domain.Player](name, repo, cmdBus)
 
 	log.Infof("[player] module initialized (DDD)")
 	return nil
+}
+
+// cleanableAdapter 适配 PlayerRepository → clean.CleanablePlayer。
+type cleanableAdapter struct {
+	repo domain.PlayerRepository
+}
+
+// CleanPlayerData 清理玩家内存数据（断线 Grace Period 到期时调用）。
+func (a *cleanableAdapter) CleanPlayerData(uid int64) error {
+	return a.repo.Delete(context.Background(), uid)
 }

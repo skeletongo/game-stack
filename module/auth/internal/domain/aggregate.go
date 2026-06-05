@@ -17,6 +17,7 @@ import (
 //   - 密码哈希永不为空
 type Account struct {
 	id           UserID
+	playerID     int64
 	username     Username
 	passwordHash PasswordHash
 	nickname     Nickname
@@ -30,7 +31,7 @@ var _ ddd.Aggregate = (*Account)(nil)
 
 // NewAccount 创建新账户（工厂方法）。
 // 所有值对象在构造时校验，密码自动哈希。
-func NewAccount(id int64, username, password, nickname string) (*Account, error) {
+func NewAccount(id int64, playerID int64, username, password, nickname string) (*Account, error) {
 	un, err := NewUsername(username)
 	if err != nil {
 		return nil, err
@@ -41,6 +42,7 @@ func NewAccount(id int64, username, password, nickname string) (*Account, error)
 	}
 	return &Account{
 		id:           UserID(id),
+		playerID:     playerID,
 		username:     un,
 		passwordHash: hashPassword(password),
 		nickname:     nn,
@@ -49,9 +51,10 @@ func NewAccount(id int64, username, password, nickname string) (*Account, error)
 }
 
 // ReconstructAccount 从持久化数据重建账户（仓储专用，跳过校验）。
-func ReconstructAccount(id int64, username, passwordHash, nickname string, token string, onlineGID string, bannedAt, createdAt int64) *Account {
+func ReconstructAccount(id int64, playerID int64, username, passwordHash, nickname string, token string, onlineGID string, bannedAt, createdAt int64) *Account {
 	return &Account{
 		id:           UserID(id),
+		playerID:     playerID,
 		username:     Username(username),
 		passwordHash: PasswordHash(passwordHash),
 		nickname:     Nickname(nickname),
@@ -68,6 +71,7 @@ func (a *Account) ID() int64 { return a.id.Int64() }
 // 查询方法
 
 func (a *Account) Username() Username { return a.username }
+func (a *Account) PlayerID() int64    { return a.playerID }
 func (a *Account) Nickname() Nickname { return a.nickname }
 func (a *Account) Token() Token       { return a.token }
 func (a *Account) OnlineGID() string  { return a.onlineGID }

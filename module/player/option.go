@@ -1,8 +1,8 @@
 package player
 
 import (
-	"github.com/skeletongo/game-stack/module/player/domain"
-	"github.com/skeletongo/game-stack/module/player/infrastructure"
+	"github.com/skeletongo/game-stack/module/player/internal/domain"
+	"github.com/skeletongo/game-stack/module/player/internal/infrastructure"
 )
 
 // options Player 模块配置。

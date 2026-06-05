@@ -8,16 +8,18 @@
 package auth
 
 import (
-	"time"
+	"context"
 
 	"github.com/dobyte/due/v2/cluster"
 	"github.com/dobyte/due/v2/cluster/node"
 	"github.com/dobyte/due/v2/log"
 
 	"github.com/skeletongo/game-stack/ddd"
-	"github.com/skeletongo/game-stack/module/auth/application"
-	"github.com/skeletongo/game-stack/module/auth/domain"
-	interfaces "github.com/skeletongo/game-stack/module/auth/interface"
+	"github.com/skeletongo/game-stack/module/auth/internal/application"
+	"github.com/skeletongo/game-stack/module/auth/internal/domain"
+	interfaces "github.com/skeletongo/game-stack/module/auth/internal/interface"
+	svcserver "github.com/skeletongo/game-stack/module/auth/internal/svc"
+	"github.com/skeletongo/game-stack/module/clean"
 	"github.com/skeletongo/game-stack/stack"
 	"github.com/skeletongo/game-stack/stack/debug"
 )
@@ -51,19 +53,16 @@ func (m *authModule) Init(proxy *node.Proxy) error {
 
 	// ---- 领域层 ----
 	eventBus := ddd.NewEventBus()
-
-	// ---- 清理器（跨模块共享）----
-	cleaner := stack.NewPlayerDoneCleaner(proxy, 30*time.Second, 3)
-	stack.RegisterService("cleaner", cleaner)
+	cmdBus := ddd.NewCommandBus()
 
 	// ---- 应用层：命令处理器 ----
-	registerHandler := &application.RegisterHandler{Repo: repo, EventBus: eventBus}
-	loginHandler := &application.LoginHandler{Repo: repo, EventBus: eventBus}
-	logoutHandler := &application.LogoutHandler{Repo: repo, EventBus: eventBus}
-	refreshHandler := &application.RefreshTokenHandler{Repo: repo}
+	ddd.Register(cmdBus, application.CmdRegister, &application.RegisterHandler{Repo: repo, EventBus: eventBus})
+	ddd.Register(cmdBus, application.CmdLogin, &application.LoginHandler{Repo: repo, EventBus: eventBus})
+	ddd.Register(cmdBus, application.CmdLogout, &application.LogoutHandler{Repo: repo, EventBus: eventBus})
+	ddd.Register(cmdBus, application.CmdRefreshToken, &application.RefreshTokenHandler{Repo: repo})
 
 	// ---- 接口层：路由 + 事件处理器 ----
-	routes := interfaces.NewHandlers(cleaner, proxy, registerHandler, loginHandler, logoutHandler, refreshHandler)
+	routes := interfaces.NewHandlers(proxy, cmdBus)
 
 	// 无状态路由（无需认证）
 	proxy.AddRouteHandler(stack.RouteAuthLogin, routes.HandleLogin)
@@ -74,18 +73,29 @@ func (m *authModule) Init(proxy *node.Proxy) error {
 	proxy.AddRouteHandler(stack.RouteAuthTokenRefresh, routes.HandleRefresh, stack.StatefulAuthorizedRoute)
 
 	// 连接/断开事件（全集群广播）
-	proxy.AddEventHandler(cluster.Connect, routes.HandleConnect)
-	proxy.AddEventHandler(cluster.Disconnect, routes.HandleDisconnect)
+	cleaner := clean.Get()
+	proxy.AddEventHandler(cluster.Connect, cleaner.HandleConnect)
+	proxy.AddEventHandler(cluster.Disconnect, cleaner.HandleDisconnect)
 
 	// 注册清理回调（Grace Period 到期后清除 token）
 	cleaner.Register(&cleanableAdapter{repo: repo})
 
 	// 注册跨模块 Service（供其他模块通过 stack.GetService("auth") 获取）
-	stack.RegisterService(name, &svcAdapter{repo: repo})
+	stack.RegisterService(name, svcserver.New(repo))
 
-	// 注册到 debug 服务（运行时查询/修改数据。auth 无 CommandBus，只支持 query 和 patch）
-	debug.Register[*domain.Account](name, repo, nil)
+	// 注册到 debug 服务（运行时查询/修改数据）
+	debug.Register[*domain.Account](name, repo, cmdBus)
 
 	log.Infof("[auth] module initialized (DDD)")
 	return nil
+}
+
+// cleanableAdapter 适配 AccountRepository → clean.CleanablePlayer。
+type cleanableAdapter struct {
+	repo domain.AccountRepository
+}
+
+// CleanPlayerData 清理玩家认证数据（断线 Grace Period 到期时调用）。
+func (a *cleanableAdapter) CleanPlayerData(uid int64) error {
+	return a.repo.Delete(context.Background(), uid)
 }

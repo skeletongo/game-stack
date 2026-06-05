@@ -10,8 +10,8 @@ import (
 	"github.com/dobyte/due/v2/log"
 
 	"github.com/skeletongo/game-stack/ddd"
-	"github.com/skeletongo/game-stack/module/player/application"
-	"github.com/skeletongo/game-stack/module/player/domain"
+	"github.com/skeletongo/game-stack/module/player/internal/application"
+	"github.com/skeletongo/game-stack/module/player/internal/domain"
 	"github.com/skeletongo/game-stack/proto/common"
 	"github.com/skeletongo/game-stack/proto/player"
 	"github.com/skeletongo/game-stack/stack"
@@ -19,17 +19,15 @@ import (
 
 // RouteHandlers 持有路由处理器所需的依赖。
 type RouteHandlers struct {
-	CmdBus  *ddd.CommandBus
-	Repo    domain.PlayerRepository
-	GetInfo *application.GetPlayerHandler
+	CmdBus *ddd.CommandBus
+	Repo   domain.PlayerRepository
 }
 
 // NewRouteHandlers 创建路由处理器。
 func NewRouteHandlers(cmdBus *ddd.CommandBus, repo domain.PlayerRepository) *RouteHandlers {
 	return &RouteHandlers{
-		CmdBus:  cmdBus,
-		Repo:    repo,
-		GetInfo: &application.GetPlayerHandler{Repo: repo},
+		CmdBus: cmdBus,
+		Repo:   repo,
 	}
 }
 
@@ -47,7 +45,8 @@ func (h *RouteHandlers) HandleGetInfo(ctx node.Context) {
 	if pid == 0 {
 		pid = ctx.UID()
 	}
-	p, err := h.GetInfo.GetPlayer(ctx.Context(), pid)
+	p, err := ddd.Dispatch[*domain.Player](ctx.Context(), h.CmdBus,
+		application.GetPlayerCmd{PlayerID: ctx.UID(), TargetID: pid})
 	if err != nil {
 		log.Errorf("[player] HandleGetInfo load failed: %v", err)
 		stack.ProtoResponse(ctx, &player.GetInfoResponse{Code: stack.ErrCode(err), Message: err.Error()})
@@ -67,7 +66,7 @@ func (h *RouteHandlers) HandleSetAvatarActor(ctx node.Context) {
 		return
 	}
 	cmd := application.SetAvatarCmd{PlayerID: ctx.UID(), Avatar: req.Avatar}
-	if err := h.CmdBus.Dispatch(ctx.Context(), cmd); err != nil {
+	if _, err := h.CmdBus.Dispatch(ctx.Context(), cmd); err != nil {
 		log.Errorf("[player] set avatar failed: uid=%d err=%v", ctx.UID(), err)
 		stack.ProtoResponse(ctx, &player.SetAvatarResponse{Code: stack.ErrCode(err), Message: err.Error()})
 		return

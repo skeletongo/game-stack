@@ -12,15 +12,3 @@ type Module interface {
 	// 事件处理器和钩子监听器。
 	Init(proxy *node.Proxy) error
 }
-
-// CleanableService 是模块 Service 可选实现的接口。
-// 实现了此接口的模块，会在玩家断线时被调用以清理该玩家的内存数据。
-//
-// CleanPlayerData 会重试直到成功（最多 maxRetries 次），
-// 全部成功后才会解除节点绑定，防止清理失败导致数据丢失。
-type CleanableService interface {
-	CleanPlayerData(uid int64) error
-}
-
-// 类型断言辅助
-var _ interface{} = CleanableService(nil)

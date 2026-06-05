@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/skeletongo/game-stack/module/auth/domain"
+	"github.com/skeletongo/game-stack/module/auth/internal/domain"
 )
 
 var _ domain.AccountRepository = (*MemoryRepo)(nil)

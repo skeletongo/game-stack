@@ -1,8 +1,8 @@
 package auth
 
 import (
-	"github.com/skeletongo/game-stack/module/auth/domain"
-	"github.com/skeletongo/game-stack/module/auth/infrastructure"
+	"github.com/skeletongo/game-stack/module/auth/internal/domain"
+	"github.com/skeletongo/game-stack/module/auth/internal/infrastructure"
 )
 
 // options auth 模块配置。

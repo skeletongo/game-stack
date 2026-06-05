@@ -6,12 +6,17 @@
 //  3. 模块通过 RegisterRouteInitializer 注册 Actor 上的路由处理器。
 //     Spawn 时自动应用所有已注册的初始化器。
 //
-// 两种使用模式：
+// 三种使用模式：
 //
 //	模式1 (fire-and-forget):
-//	  actor.InvokePlayer(proxy, uid, func() { playerSvc.DeductGold(uid, 100) })
+//	  actor.InvokePlayer(proxy, uid, func() { _ = playerSvc.DeductGold(ctx, uid, 100) })
 //
-//	模式2 (同步请求-响应，通过 Actor mailbox):
+//	模式2 (同步执行并返回结果):
+//	  newExp, err := actor.InvokePlayerSync[int64](ctx, proxy, uid, func(ctx context.Context) (int64, error) {
+//	      return ddd.Dispatch[int64](ctx, cmdBus, application.AddExpCmd{...})
+//	  })
+//
+//	模式3 (同步请求-响应，通过 Actor mailbox):
 //	  模块 Init 时：
 //	    ① proxy.AddRouteHandler(route, actor.RouteToActor(actor.KindPlayer), opts)
 //	    ② actor.RegisterRouteInitializer(func(act) { act.AddRouteHandler(route, handler) })
@@ -21,10 +26,12 @@ package actor
 
 import (
 	"context"
+	"fmt"
 	"strconv"
 	"sync"
 
 	"github.com/dobyte/due/v2/cluster/node"
+	"github.com/dobyte/due/v2/errors"
 	"github.com/dobyte/due/v2/log"
 )
 
@@ -71,6 +78,14 @@ func SpawnPlayer(proxy *node.Proxy, uid int64) (*node.Actor, error) {
 		node.WithActorID(id),
 	)
 	if err != nil {
+		if errors.Is(err, errors.ErrActorExists) {
+			act, b := proxy.Actor(KindPlayer, id)
+			if !b {
+				log.Errorf("[actor] spawn player actor find failed: uid=%d", uid)
+				return nil, err
+			}
+			return act, nil
+		}
 		log.Errorf("[actor] spawn player actor failed: uid=%d err=%v", uid, err)
 		return nil, err
 	}
@@ -101,14 +116,19 @@ func KillPlayer(proxy *node.Proxy, uid int64) {
 func GetPlayer(proxy *node.Proxy, uid int64) *node.Actor {
 	act, ok := proxy.Actor(KindPlayer, strconv.FormatInt(uid, 10))
 	if !ok {
-		return nil
+		var err error
+		act, err = SpawnPlayer(proxy, uid)
+		if err != nil {
+			return nil
+		}
 	}
 	return act
 }
 
 // InvokePlayer 向玩家 Actor 投递函数，在 Actor goroutine 中串行执行。
-// Actor 不存在时静默丢弃（玩家已断线）。
+// Actor 不存在时自动创建。
 // Actor 存在但归属权不属于本节点时，杀死残留 Actor 并丢弃。
+// 注意：fire-and-forget，不等待执行结果。
 func InvokePlayer(proxy *node.Proxy, uid int64, fn func()) {
 	// 防御性检查：玩家是否仍绑定在本节点
 	if nid, err := proxy.LocateNode(context.Background(), uid, proxy.GetName()); err == nil && nid != "" && nid != proxy.GetID() {
@@ -119,6 +139,48 @@ func InvokePlayer(proxy *node.Proxy, uid int64, fn func()) {
 
 	if act := GetPlayer(proxy, uid); act != nil {
 		act.Invoke(fn)
+		return
+	}
+
+	log.Warnf("[actor] player actor not found uid=%v", uid)
+}
+
+// InvokePlayerSync 向玩家 Actor 同步投递函数，在 Actor goroutine 中串行执行并返回结果。
+//
+// Actor 不存在时自动创建。
+// ctx 用于取消等待：调用方取消 ctx 后不再等待 Actor 执行结果，直接返回 ctx.Err()。
+// 归属权不属于本节点时返回错误。
+func InvokePlayerSync[T any](ctx context.Context, proxy *node.Proxy, uid int64, fn func(context.Context) (T, error)) (T, error) {
+	var zero T
+
+	// 防御性检查：归属权
+	if nid, err := proxy.LocateNode(context.Background(), uid, proxy.GetName()); err == nil && nid != "" && nid != proxy.GetID() {
+		log.Warnf("[actor] invoke sync dropped, ownership lost: uid=%d bound_nid=%s my_nid=%s", uid, nid, proxy.GetID())
+		KillPlayer(proxy, uid)
+		return zero, fmt.Errorf("player actor ownership lost: uid=%d", uid)
+	}
+
+	act := GetPlayer(proxy, uid)
+	if act == nil {
+		return zero, fmt.Errorf("player actor not found: uid=%d", uid)
+	}
+
+	type result struct {
+		val T
+		err error
+	}
+	ch := make(chan result, 1)
+
+	act.Invoke(func() {
+		val, err := fn(ctx)
+		ch <- result{val, err}
+	})
+
+	select {
+	case r := <-ch:
+		return r.val, r.err
+	case <-ctx.Done():
+		return zero, ctx.Err()
 	}
 }
 
@@ -140,10 +202,9 @@ func RouteToActor(kind string) node.RouteHandler {
 		// 归属权由 due 的 StatefulRoute 保证——gate 通过 Locator 定位
 		// 玩家绑定节点后才投递消息，消息不会到达旧节点。
 		proxy := ctx.Proxy()
-		id := strconv.FormatInt(uid, 10)
 
-		act, ok := proxy.Actor(kind, id)
-		if !ok {
+		act := GetPlayer(proxy, uid)
+		if act == nil {
 			log.Warnf("[actor] actor %s not found uid: %d", kind, uid)
 			return
 		}

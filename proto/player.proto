@@ -22,7 +22,7 @@ enum PlayerError {
     PLAYER_NOT_FOUND         = 2000; // 未找到
     INVALID_LEVEL            = 2001; // 等级不合法
     INSUFFICIENT_GOLD        = 2002; // 金币不足
-    NAME_TOO_LONG            = 2003; // 太长
+    NAME_TOO_LONG            = 2003; // 名称太长
     INSUFFICIENT_DIAMOND     = 2004; // 钻石不足
     INVALID_EXP              = 2005; // 经验值不合法
 }

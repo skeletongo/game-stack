@@ -2,12 +2,14 @@ package application
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/dobyte/due/v2/log"
 
 	"github.com/skeletongo/game-stack/ddd"
-	"github.com/skeletongo/game-stack/module/auth/domain"
+	"github.com/skeletongo/game-stack/module/auth/internal/domain"
+	playersvc "github.com/skeletongo/game-stack/module/player/svc"
 	"github.com/skeletongo/game-stack/stack"
 )
 
@@ -19,8 +21,9 @@ type RegisterHandler struct {
 
 // RegisterResult 注册命令的返回结果。
 type RegisterResult struct {
-	UserID int64
-	Token  string
+	UserID   int64
+	PlayerID int64
+	Token    string
 }
 
 // Handle 执行注册：校验用户名唯一、创建账户、生成令牌、发布事件。
@@ -29,8 +32,16 @@ func (h *RegisterHandler) Handle(ctx context.Context, cmd RegisterCmd) (*Registe
 		return nil, stack.ErrAccountExists
 	}
 	userID := time.Now().UnixNano()
-	account, err := domain.NewAccount(userID, cmd.Username, cmd.Password, cmd.Nickname)
+	playerID := userID
+	account, err := domain.NewAccount(userID, playerID, cmd.Username, cmd.Password, cmd.Nickname)
 	if err != nil {
+		return nil, err
+	}
+	players, ok := stack.GetService("player").(playersvc.IPlayer)
+	if !ok {
+		return nil, fmt.Errorf("player service not registered")
+	}
+	if err := players.CreatePlayer(ctx, playerID, cmd.Nickname); err != nil {
 		return nil, err
 	}
 	token := domain.GenerateToken()
@@ -38,12 +49,13 @@ func (h *RegisterHandler) Handle(ctx context.Context, cmd RegisterCmd) (*Registe
 		return nil, err
 	}
 	if err := h.Repo.Save(ctx, account); err != nil {
+		_ = players.DeletePlayer(ctx, playerID)
 		return nil, err
 	}
 	h.EventBus.Publish(domain.NewAccountCreated(userID, cmd.Username))
 	h.EventBus.Publish(domain.NewAccountLoggedIn(userID))
-	log.Infof("[auth] account registered: uid=%d username=%s", userID, cmd.Username)
-	return &RegisterResult{UserID: userID, Token: token.String()}, nil
+	log.Infof("[auth] account registered: uid=%d player_id=%d username=%s", userID, playerID, cmd.Username)
+	return &RegisterResult{UserID: userID, PlayerID: playerID, Token: token.String()}, nil
 }
 
 // LoginHandler 处理登录命令。
@@ -55,6 +67,7 @@ type LoginHandler struct {
 // LoginResult 登录命令的返回结果。
 type LoginResult struct {
 	UserID   int64
+	PlayerID int64
 	Token    string
 	Nickname string
 }
@@ -79,8 +92,8 @@ func (h *LoginHandler) Handle(ctx context.Context, cmd LoginCmd) (*LoginResult, 
 		return nil, err
 	}
 	h.EventBus.Publish(domain.NewAccountLoggedIn(account.ID()))
-	log.Infof("[auth] account logged in: uid=%d username=%s", account.ID(), cmd.Username)
-	return &LoginResult{UserID: account.ID(), Token: token.String(), Nickname: account.Nickname().String()}, nil
+	log.Infof("[auth] account logged in: uid=%d player_id=%d username=%s", account.ID(), account.PlayerID(), cmd.Username)
+	return &LoginResult{UserID: account.ID(), PlayerID: account.PlayerID(), Token: token.String(), Nickname: account.Nickname().String()}, nil
 }
 
 // LogoutHandler 处理登出命令。
@@ -90,18 +103,18 @@ type LogoutHandler struct {
 }
 
 // Handle 执行登出：清除账户的令牌和在线状态，发布事件。
-func (h *LogoutHandler) Handle(ctx context.Context, cmd LogoutCmd) error {
+func (h *LogoutHandler) Handle(ctx context.Context, cmd LogoutCmd) (ddd.NoResult, error) {
 	account, err := h.Repo.Load(ctx, cmd.UserID)
 	if err != nil {
-		return err
+		return ddd.NoResult{}, err
 	}
 	account.Logout()
 	if err := h.Repo.Save(ctx, account); err != nil {
-		return err
+		return ddd.NoResult{}, err
 	}
 	h.EventBus.Publish(domain.NewAccountLoggedOut(cmd.UserID))
 	log.Infof("[auth] account logged out: uid=%d", cmd.UserID)
-	return nil
+	return ddd.NoResult{}, nil
 }
 
 // RefreshTokenHandler 处理令牌刷新命令。

@@ -1,4 +1,4 @@
-package stack
+package clean
 
 import (
 	"context"
@@ -7,7 +7,17 @@ import (
 
 	"github.com/dobyte/due/v2/cluster/node"
 	"github.com/dobyte/due/v2/log"
+	"github.com/skeletongo/game-stack/module/actor"
 )
+
+// CleanablePlayer 是模块 Service 可选实现的接口。
+// 实现了此接口的模块，会在玩家断线时被调用以清理该玩家的内存数据。
+//
+// CleanPlayerData 会重试直到成功（最多 maxRetries 次），
+// 全部成功后才会解除节点绑定，防止清理失败导致数据丢失。
+type CleanablePlayer interface {
+	CleanPlayerData(uid int64) error
+}
 
 // PlayerDoneCleaner 管理玩家断线后的延迟清理。
 //
@@ -23,7 +33,7 @@ type PlayerDoneCleaner struct {
 	mu         sync.Mutex
 	timers     map[int64]*time.Timer
 	retries    map[int64]int // per-UID retry count
-	services   []CleanableService
+	services   []CleanablePlayer
 	proxy      *node.Proxy
 	delay      time.Duration
 	maxRetries int // -1: 不重试, 0: 一直重试, >0: 最大重试次数
@@ -46,8 +56,8 @@ func NewPlayerDoneCleaner(proxy *node.Proxy, delay time.Duration, maxRetries int
 	}
 }
 
-// Register 注册一个 CleanableService。模块可在 Init 中调用。
-func (c *PlayerDoneCleaner) Register(svc CleanableService) {
+// Register 注册一个 CleanablePlayer。模块可在 Init 中调用。
+func (c *PlayerDoneCleaner) Register(svc CleanablePlayer) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.services = append(c.services, svc)
@@ -157,4 +167,32 @@ func (c *PlayerDoneCleaner) doCleanup(uid int64) {
 		log.Errorf("[cleaner] cleanup failed after %d retries, force unbind: uid=%d errs=%v", retries, uid, errs)
 		_ = c.proxy.UnbindNode(context.Background(), uid)
 	}
+}
+
+// HandleConnect 处理集群 Connect 事件。
+//
+// Connect 事件为全集群广播。旧节点收到后取消玩家的延迟清理定时器，
+// 若 Actor 已被杀死则重新创建（断线重连场景）。
+func (c *PlayerDoneCleaner) HandleConnect(ctx node.Context) {
+	uid := ctx.UID()
+	if uid == 0 {
+		return
+	}
+	log.Infof("player connected: uid=%d cid=%d gid=%s", uid, ctx.CID(), ctx.GID())
+	c.OnLogin(uid)
+}
+
+// HandleDisconnect 处理集群 Disconnect 事件。
+//
+// 两阶段清理：
+//
+//	立即：杀 Actor（关闭 mailbox，丢弃排队消息）
+//	延迟 30s：Grace Period 到期后清理 token + 解绑节点
+func (c *PlayerDoneCleaner) HandleDisconnect(ctx node.Context) {
+	uid := ctx.UID()
+	if uid != 0 {
+		actor.KillPlayer(c.proxy, uid)
+		c.OnDisconnect(uid)
+	}
+	log.Infof("player disconnected: uid=%d cid=%d", uid, ctx.CID())
 }

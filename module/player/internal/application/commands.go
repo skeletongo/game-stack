@@ -2,6 +2,7 @@ package application
 
 // 命令名称常量。
 const (
+	CmdCreatePlayer  = "player.create"
 	CmdGetPlayer     = "player.get_info"
 	CmdSetAvatar     = "player.set_avatar"
 	CmdDeletePlayer  = "player.delete"
@@ -11,6 +12,14 @@ const (
 	CmdAddDiamond    = "player.add_diamond"
 	CmdDeductDiamond = "player.deduct_diamond"
 )
+
+// CreatePlayerCmd 创建玩家命令（注册账号时由 auth 模块调用）。
+type CreatePlayerCmd struct {
+	PlayerID int64
+	Nickname string
+}
+
+func (c CreatePlayerCmd) CommandName() string { return CmdCreatePlayer }
 
 // GetPlayerCmd 查询玩家信息命令（只读，不走 Actor）。
 type GetPlayerCmd struct {

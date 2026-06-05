@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/skeletongo/game-stack/module/player/domain"
+	"github.com/skeletongo/game-stack/module/player/internal/domain"
 )
 
 var _ domain.PlayerRepository = (*MemoryRepo)(nil)
@@ -68,4 +68,9 @@ func (r *MemoryRepo) FindByNickname(_ context.Context, nickname string) (*domain
 		return nil, fmt.Errorf("player with nickname %s not found", nickname)
 	}
 	return r.players[id], nil
+}
+
+// CleanPlayerData 清理玩家内存数据（断线 Grace Period 到期时调用）。
+func (r *MemoryRepo) CleanPlayerData(uid int64) error {
+	return r.Delete(context.Background(), uid)
 }

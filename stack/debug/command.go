@@ -24,7 +24,7 @@ type commandRequest struct {
 // @Accept       json
 // @Produce      json
 // @Param        request  body  commandRequest  true  "命令请求"
-// @Success      200      {object}  map[string]bool  "执行成功"
+// @Success      200      {object}  object  "命令执行结果"
 // @Failure      400      {object}  map[string]string  "参数错误"
 // @Failure      404      {object}  map[string]string  "模块或命令不存在"
 // @Router       /debug/command [post]
@@ -63,12 +63,13 @@ func handleCommand(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if err := m.CmdBus.Dispatch(context.Background(), cmd.(ddd.Command)); err != nil {
+	ret, err := m.CmdBus.Dispatch(context.Background(), cmd.(ddd.Command))
+	if err != nil {
 		log.Errorf("[debug] command failed: %s/%s err=%v", req.Module, req.Cmd, err)
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
-	log.Infof("[debug] command executed: %s/%s params=%v", req.Module, req.Cmd, req.Params)
-	writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
+	log.Infof("[debug] command executed: %s/%s params=%v result=%+v", req.Module, req.Cmd, req.Params, ret)
+	writeJSON(w, http.StatusOK, ret)
 }

@@ -1,14 +1,13 @@
 package application
 
 import (
-	pb "github.com/skeletongo/game-stack/proto/player"
-
-	"github.com/skeletongo/game-stack/module/player/domain"
+	"github.com/skeletongo/game-stack/module/player/internal/domain"
+	"github.com/skeletongo/game-stack/proto/player"
 )
 
 // PlayerToProto 将领域 Player 聚合转换为 proto PlayerInfo 消息。
-func PlayerToProto(p *domain.Player) *pb.PlayerInfo {
-	return &pb.PlayerInfo{
+func PlayerToProto(p *domain.Player) *player.PlayerInfo {
+	return &player.PlayerInfo{
 		Id:        p.ID(),
 		Nickname:  p.Nickname().String(),
 		Level:     p.Level().Int32(),

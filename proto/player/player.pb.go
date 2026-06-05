@@ -82,7 +82,7 @@ const (
 	PlayerError_PLAYER_NOT_FOUND         PlayerError = 2000 // 未找到
 	PlayerError_INVALID_LEVEL            PlayerError = 2001 // 等级不合法
 	PlayerError_INSUFFICIENT_GOLD        PlayerError = 2002 // 金币不足
-	PlayerError_NAME_TOO_LONG            PlayerError = 2003 // 太长
+	PlayerError_NAME_TOO_LONG            PlayerError = 2003 // 名称太长
 	PlayerError_INSUFFICIENT_DIAMOND     PlayerError = 2004 // 钻石不足
 	PlayerError_INVALID_EXP              PlayerError = 2005 // 经验值不合法
 )

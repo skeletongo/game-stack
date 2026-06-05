@@ -15,7 +15,7 @@ for proto in proto/*.proto; do
         "$proto"
 done
 
-for proto in module/*/grpc/*.proto; do
+for proto in module/*/*.proto; do
     echo "  $proto"
     protoc --proto_path=. \
         --go_out=. --go_opt=module=github.com/skeletongo/game-stack \

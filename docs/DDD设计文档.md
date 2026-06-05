@@ -267,6 +267,8 @@ func (CalcLevelService) CalcLevel(exp int64) int32 {
 
 命令封装了客户端意图。应用服务（CommandHandler）编排领域对象完成操作。
 
+`CommandHandler[C, T any]` 接受命令类型 `C` 和返回结果类型 `T`。无返回值的命令使用 `ddd.NoResult`，有返回值的命令直接返回具体类型。
+
 ```go
 // application/commands.go — 命令定义
 
@@ -280,20 +282,39 @@ func (c AddExpCmd) CommandName() string { return "player.add_exp" }
 ```
 
 ```go
-// application/handlers.go — 应用服务
+// application/handlers.go — 应用服务（返回最新经验值）
 
 type AddExpHandler struct {
     playerRepo PlayerRepository
     eventBus   *ddd.EventBus
 }
 
-func (h *AddExpHandler) Handle(ctx context.Context, cmd AddExpCmd) error {
+var _ ddd.CommandHandler[AddExpCmd, int64] = (*AddExpHandler)(nil)
+
+func (h *AddExpHandler) Handle(ctx context.Context, cmd AddExpCmd) (int64, error) {
     p, err := h.playerRepo.Load(ctx, cmd.PlayerID)
     if err != nil {
-        return err
+        return 0, err
     }
-    return p.AddExp(cmd.Amount, h.eventBus, h.playerRepo)
+    leveledUp := p.AddExp(cmd.Amount)
+    if err := h.playerRepo.Save(ctx, p); err != nil {
+        return 0, err
+    }
+    if leveledUp {
+        h.eventBus.Publish(PlayerLeveledUp{...})
+    }
+    return p.Exp().Int64(), nil
 }
+```
+
+**类型安全的命令分发**：
+
+```go
+// 接口层使用 ddd.Dispatch[T] 获取强类型结果
+result, err := ddd.Dispatch[*LoginResult](ctx, cmdBus, cmd)
+
+// 无返回值命令用 _ 丢弃 ddd.NoResult
+_, err := cmdBus.Dispatch(ctx, cmd)
 ```
 
 ---
@@ -325,29 +346,38 @@ func (h *AddExpHandler) Handle(ctx context.Context, cmd AddExpCmd) error {
 
 ### 3.2 目录结构
 
-每个模块按以下结构组织（以 player 为例）：
+四层代码放在 `internal/` 子目录中（Go 编译器强制边界），对外接口放在 `svc/`。以 player 为例：
 
 ```
 module/player/
-├── domain/                    # 领域层
-│   ├── aggregate.go           # Player 聚合根 + 行为方法
-│   ├── value_objects.go       # PlayerID、Nickname、Level、Gold 等 VO
-│   ├── events.go              # 领域事件定义
-│   ├── repository.go          # PlayerRepository 接口
-│   └── service.go             # 领域服务（CalcLevelService 等）
-├── application/               # 应用层
-│   ├── commands.go            # 命令定义（AddExpCmd、UpdateProfileCmd 等）
-│   ├── handlers.go            # CommandHandler 实现
-│   └── dto.go                 # DTO（proto 消息 ↔ 领域对象的转换）
-├── infrastructure/            # 基础设施层
-│   ├── repo_memory.go         # 内存仓储实现
-│   └── repo_redis.go          # Redis 仓储实现（可选）
-├── interface/                 # 接口层
-│   ├── routes.go              # 路由处理器（薄层，解析 proto → 构建 Command → 投递）
-├── grpc/                      # gRPC 适配（如有）
+├── internal/
+│   ├── domain/                # 领域层
+│   │   ├── aggregate.go       # Player 聚合根 + 行为方法
+│   │   ├── value_objects.go   # PlayerID、Nickname、Level、Gold 等 VO
+│   │   ├── events.go          # 领域事件定义
+│   │   ├── repository.go      # PlayerRepository 接口
+│   │   └── service.go         # 领域服务（CalcLevelService 等）
+│   ├── application/           # 应用层
+│   │   ├── commands.go        # 命令定义（AddExpCmd、UpdateProfileCmd 等）
+│   │   ├── handlers.go        # CommandHandler 实现
+│   │   └── dto.go             # DTO（proto 消息 ↔ 领域对象的转换）
+│   ├── infrastructure/        # 基础设施层
+│   │   ├── repo_memory.go     # 内存仓储实现
+│   │   └── repo_redis.go      # Redis 仓储实现（可选）
+│   ├── interface/             # 接口层
+│   │   └── routes.go          # 路由处理器（薄层，解析 proto → 构建 Command → 投递）
+│   ├── rpc/                   # RPC 适配（如有）
+│   │   └── server.go          # gRPC 服务端 + 客户端
+│   └── svc/                   # 跨模块 Service 实现
+│       └── server.go          # 实现 svc.IPlayer 接口
+├── svc/                       # 对外接口定义
+│   └── interface.go           # IPlayer + Player DTO
+├── grpc/                      # proto 生成代码（如有）
 │   ├── player.proto
-│   └── server.go
-└── module.go                  # Module 构造函数，装配依赖注入
+│   ├── player.pb.go
+│   └── player_grpc.pb.go
+├── module.go                  # Module 构造函数，装配依赖注入
+└── option.go                  # 函数式选项
 ```
 
 ### 3.3 依赖方向
@@ -398,12 +428,24 @@ Interface ──→ Application ──→ Domain ←── Infrastructure
   └── ... (同一玩家的所有命令串行执行)
 ```
 
+### 跨模块同步调用
+
+其他模块通过 `InvokePlayerSync` 将命令投递到玩家 Actor 中同步执行并获取返回值：
+
+```go
+// auth 模块注册时调用 player 模块
+newExp, err := actor.InvokePlayerSync[int64](ctx, proxy, uid, func(ctx context.Context) (int64, error) {
+    return ddd.Dispatch[int64](ctx, cmdBus, application.AddExpCmd{...})
+})
+```
+
 **关键规则：**
 
 1. **Actor 不感知 Aggregate**：Actor 只需知道玩家的命令队列，不需要知道有多少聚合
 2. **Aggregate 不依赖 Actor**：聚合是纯领域对象，可独立单测
 3. **跨聚合操作通过 EventBus**：同一 Actor 内的跨聚合通信走 DomainEvent
 4. **命令处理在 Actor 内**：`RouteToActor` → Actor dispatch → CommandBus.Dispatch → CommandHandler.Handle
+5. **跨模块写操作走 Actor**：通过 `InvokePlayerSync`/`InvokePlayer` 在玩家 Actor 中串行执行
 
 ---
 
@@ -413,17 +455,20 @@ Interface ──→ Application ──→ Domain ←── Infrastructure
 
 | 层级 | 文件 | 职责 |
 |------|------|------|
-| Domain | `domain/aggregate.go` | 聚合根结构体 + 行为方法（AddExp、DeductGold 等） |
-| Domain | `domain/value_objects.go` | 值对象定义 + 校验 + Equals |
-| Domain | `domain/events.go` | 领域事件结构体定义 |
-| Domain | `domain/repository.go` | 仓储接口（内嵌 `ddd.Repository[T]`） |
-| Domain | `domain/service.go` | 领域服务（跨聚合计算逻辑，无状态） |
-| Application | `application/commands.go` | 命令结构体定义 |
-| Application | `application/handlers.go` | CommandHandler 实现（编排层） |
-| Application | `application/dto.go` | proto ↔ 领域对象转换函数 |
-| Infrastructure | `infrastructure/repo_memory.go` | 内存仓储实现 |
-| Infrastructure | `infrastructure/repo_redis.go` | Redis 仓储实现（可选） |
-| Interface | `interface/routes.go` | 路由处理器（薄层） |
+| Domain | `internal/domain/aggregate.go` | 聚合根结构体 + 行为方法（AddExp、DeductGold 等） |
+| Domain | `internal/domain/value_objects.go` | 值对象定义 + 校验 + Equals |
+| Domain | `internal/domain/events.go` | 领域事件结构体定义 |
+| Domain | `internal/domain/repository.go` | 仓储接口（内嵌 `ddd.Repository[T]`） |
+| Domain | `internal/domain/service.go` | 领域服务（跨聚合计算逻辑，无状态） |
+| Application | `internal/application/commands.go` | 命令结构体定义 |
+| Application | `internal/application/handlers.go` | CommandHandler[C, T] 实现（编排层） |
+| Application | `internal/application/dto.go` | proto ↔ 领域对象转换函数 |
+| Infrastructure | `internal/infrastructure/repo_memory.go` | 内存仓储实现 |
+| Infrastructure | `internal/infrastructure/repo_redis.go` | Redis 仓储实现（可选） |
+| Interface | `internal/interface/routes.go` | 路由处理器（薄层） |
+| RPC | `internal/rpc/server.go` | RPC 服务端 + 客户端 |
+| Service | `internal/svc/server.go` | 跨模块 Service 实现（Actor 串行化） |
+| Public API | `svc/interface.go` | 对外接口定义 + DTO |
 | Root | `module.go` | 模块构造函数 + Init（依赖注入装配） |
 
 ### 5.2 命名规范
@@ -443,14 +488,17 @@ Interface ──→ Application ──→ Domain ←── Infrastructure
 
 1. **战略设计** — 确定模块属于核心域/支撑域/通用域
 2. **聚合设计** — 识别聚合根、实体、值对象，定义不变量
-3. **创建 directory 结构** — 按 4 层创建 `domain/`、`application/`、`infrastructure/`、`interface/`
-4. **domain 层** — `value_objects.go` → `aggregate.go` → `events.go` → `repository.go`
-5. **infrastructure 层** — `repo_memory.go`（至少提供内存实现）
-6. **application 层** — `commands.go` → `handlers.go` → `dto.go`
-7. **interface 层** — `routes.go`（路由注册 + 薄 handler）
-8. **module.go** — 装配依赖注入
-9. **注册到 cmd/node/main.go** — `stack.WithModules(xxx.Module())`
-10. **proto 定义** — 在 `proto/<name>/` 和 `stack/route.go` 中添加路由/错误码
+3. **创建目录结构** — `internal/domain/`、`internal/application/`、`internal/infrastructure/`、`internal/interface/`
+4. **对外接口** — `svc/interface.go`（接口 + DTO）
+5. **domain 层** — `value_objects.go` → `aggregate.go` → `events.go` → `repository.go`
+6. **infrastructure 层** — `repo_memory.go`（至少提供内存实现）
+7. **application 层** — `commands.go` → `handlers.go` → `dto.go`
+8. **interface 层** — `routes.go`（路由注册 + 薄 handler）
+9. **internal/svc** — 实现 `svc/` 中的接口
+10. **internal/rpc** — RPC 服务端 + 客户端（如有）
+11. **module.go** — 装配依赖注入 + `cleanableAdapter`
+12. **注册到 cmd/node/main.go** — `stack.WithModules(xxx.Module(), clean.Module())`
+13. **proto 定义** — 在 `proto/<name>/` 和 `stack/route.go` 中添加路由/错误码
 
 ---
 
@@ -460,4 +508,4 @@ Interface ──→ Application ──→ Domain ←── Infrastructure
 - `docs/模块开发规范.md` — DDD 四层架构开发规范
 - `docs/store设计.md` — 仓储接口设计、实现约束
 - `docs/用户数据并发修改安全设计.md` — Actor 串行化模型（DDD 中保持不变）
-- `docs/用户延迟登出设计.md` — Grace Period（DDD 中 CleanableService 保持不变）
+- `docs/用户延迟登出设计.md` — Grace Period（DDD 中 CleanablePlayer 保持不变）
