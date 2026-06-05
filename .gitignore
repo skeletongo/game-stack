@@ -31,8 +31,9 @@ go.work.sum
 .idea/
 .vscode/
 .claude/
-CLAUDE.md
 .agents/
 .reasonix/
 run
 log
+
+CLAUDE.md
