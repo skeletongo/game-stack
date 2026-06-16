@@ -96,6 +96,6 @@ type cleanableAdapter struct {
 }
 
 // CleanPlayerData 清理玩家认证数据（断线 Grace Period 到期时调用）。
-func (a *cleanableAdapter) CleanPlayerData(uid int64) error {
-	return a.repo.Delete(context.Background(), uid)
+func (a *cleanableAdapter) CleanPlayerData(ctx context.Context, uid int64) error {
+	return a.repo.Delete(ctx, uid)
 }

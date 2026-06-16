@@ -16,7 +16,7 @@ import (
 // CleanPlayerData 会重试直到成功（最多 maxRetries 次），
 // 全部成功后才会解除节点绑定，防止清理失败导致数据丢失。
 type CleanablePlayer interface {
-	CleanPlayerData(uid int64) error
+	CleanPlayerData(ctx context.Context, uid int64) error
 }
 
 // PlayerDoneCleaner 管理玩家断线后的延迟清理。
@@ -64,7 +64,7 @@ func (c *PlayerDoneCleaner) Register(svc CleanablePlayer) {
 }
 
 // OnDisconnect 玩家断线时调用，启动延迟清理定时器。
-func (c *PlayerDoneCleaner) OnDisconnect(uid int64) {
+func (c *PlayerDoneCleaner) OnDisconnect(ctx context.Context, uid int64) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -77,14 +77,14 @@ func (c *PlayerDoneCleaner) OnDisconnect(uid int64) {
 	delete(c.retries, uid)
 
 	c.timers[uid] = time.AfterFunc(c.delay, func() {
-		c.doCleanup(uid)
+		c.doCleanup(context.Background(), uid)
 	})
 
 	log.Debugf("[cleaner] disconnect cleanup scheduled: uid=%d delay=%v", uid, c.delay)
 }
 
 // OnLogin 玩家重新登录时调用，取消延迟清理。
-func (c *PlayerDoneCleaner) OnLogin(uid int64) {
+func (c *PlayerDoneCleaner) OnLogin(ctx context.Context, uid int64) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -99,14 +99,14 @@ func (c *PlayerDoneCleaner) OnLogin(uid int64) {
 
 // doCleanup 执行真正的清理。先检查玩家是否已重连，再清理内存。
 // 如果 CleanPlayerData 失败则根据 maxRetries 决定是否重试。
-func (c *PlayerDoneCleaner) doCleanup(uid int64) {
+func (c *PlayerDoneCleaner) doCleanup(ctx context.Context, uid int64) {
 	c.mu.Lock()
 	retries := c.retries[uid]
 	delete(c.timers, uid)
 	c.mu.Unlock()
 
 	// 再查一次：玩家是否已经重连（有活跃的 Gate 绑定）
-	gid, err := c.proxy.LocateGate(context.Background(), uid)
+	gid, err := c.proxy.LocateGate(ctx, uid)
 	if err == nil && gid != "" {
 		log.Infof("[cleaner] cleanup skipped, player reconnected: uid=%d gid=%s", uid, gid)
 		c.mu.Lock()
@@ -119,7 +119,7 @@ func (c *PlayerDoneCleaner) doCleanup(uid int64) {
 
 	var errs []error
 	for _, svc := range c.services {
-		if err := svc.CleanPlayerData(uid); err != nil {
+		if err := svc.CleanPlayerData(ctx, uid); err != nil {
 			errs = append(errs, err)
 		}
 	}
@@ -131,7 +131,7 @@ func (c *PlayerDoneCleaner) doCleanup(uid int64) {
 		c.mu.Unlock()
 
 		log.Infof("[cleaner] cleanup done, unbinding: uid=%d", uid)
-		_ = c.proxy.UnbindNode(context.Background(), uid)
+		_ = c.proxy.UnbindNode(ctx, uid)
 		return
 	}
 
@@ -144,14 +144,14 @@ func (c *PlayerDoneCleaner) doCleanup(uid int64) {
 		c.mu.Unlock()
 
 		log.Warnf("[cleaner] cleanup failed, force unbind (no retry): uid=%d errs=%v", uid, errs)
-		_ = c.proxy.UnbindNode(context.Background(), uid)
+		_ = c.proxy.UnbindNode(ctx, uid)
 
 	case c.maxRetries == 0 || retries < c.maxRetries:
 		// 无限重试 or 未达上限 → 延迟重试
 		c.mu.Lock()
 		c.retries[uid] = retries + 1
 		c.timers[uid] = time.AfterFunc(c.delay, func() {
-			c.doCleanup(uid)
+			c.doCleanup(context.Background(), uid)
 		})
 		c.mu.Unlock()
 
@@ -165,7 +165,7 @@ func (c *PlayerDoneCleaner) doCleanup(uid int64) {
 		c.mu.Unlock()
 
 		log.Errorf("[cleaner] cleanup failed after %d retries, force unbind: uid=%d errs=%v", retries, uid, errs)
-		_ = c.proxy.UnbindNode(context.Background(), uid)
+		_ = c.proxy.UnbindNode(ctx, uid)
 	}
 }
 
@@ -179,7 +179,7 @@ func (c *PlayerDoneCleaner) HandleConnect(ctx node.Context) {
 		return
 	}
 	log.Infof("player connected: uid=%d cid=%d gid=%s", uid, ctx.CID(), ctx.GID())
-	c.OnLogin(uid)
+	c.OnLogin(ctx.Context(), uid)
 }
 
 // HandleDisconnect 处理集群 Disconnect 事件。
@@ -192,7 +192,7 @@ func (c *PlayerDoneCleaner) HandleDisconnect(ctx node.Context) {
 	uid := ctx.UID()
 	if uid != 0 {
 		actor.KillPlayer(c.proxy, uid)
-		c.OnDisconnect(uid)
+		c.OnDisconnect(ctx.Context(), uid)
 	}
 	log.Infof("player disconnected: uid=%d cid=%d", uid, ctx.CID())
 }
