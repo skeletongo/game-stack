@@ -45,15 +45,11 @@ func (h *RegisterHandler) Handle(ctx context.Context, cmd RegisterCmd) (*Registe
 		return nil, err
 	}
 	token := domain.GenerateToken()
-	if err := account.Login(token, ""); err != nil {
-		return nil, err
-	}
 	if err := h.Repo.Save(ctx, account); err != nil {
 		_ = players.DeletePlayer(ctx, playerID)
 		return nil, err
 	}
 	h.EventBus.Publish(domain.NewAccountCreated(userID, cmd.Username))
-	h.EventBus.Publish(domain.NewAccountLoggedIn(userID))
 	log.Infof("[auth] account registered: uid=%d player_id=%d username=%s", userID, playerID, cmd.Username)
 	return &RegisterResult{UserID: userID, PlayerID: playerID, Token: token.String()}, nil
 }
@@ -85,15 +81,29 @@ func (h *LoginHandler) Handle(ctx context.Context, cmd LoginCmd) (*LoginResult, 
 		return nil, stack.ErrWrongPassword
 	}
 	token := domain.GenerateToken()
-	if err := account.Login(token, ""); err != nil {
-		return nil, err
+	log.Infof("[auth] account login verified: uid=%d player_id=%d username=%s", account.ID(), account.PlayerID(), cmd.Username)
+	return &LoginResult{UserID: account.ID(), PlayerID: account.PlayerID(), Token: token.String(), Nickname: account.Nickname().String()}, nil
+}
+
+// MarkOnlineHandler 处理账号在线标记。
+type MarkOnlineHandler struct {
+	Repo     domain.AccountRepository
+	EventBus *ddd.EventBus
+}
+
+func (h *MarkOnlineHandler) Handle(ctx context.Context, cmd MarkOnlineCmd) (ddd.NoResult, error) {
+	account, err := h.Repo.Load(ctx, cmd.UserID)
+	if err != nil {
+		return ddd.NoResult{}, err
+	}
+	if err := account.Login(domain.Token(cmd.Token), cmd.GID); err != nil {
+		return ddd.NoResult{}, err
 	}
 	if err := h.Repo.Save(ctx, account); err != nil {
-		return nil, err
+		return ddd.NoResult{}, err
 	}
-	h.EventBus.Publish(domain.NewAccountLoggedIn(account.ID()))
-	log.Infof("[auth] account logged in: uid=%d player_id=%d username=%s", account.ID(), account.PlayerID(), cmd.Username)
-	return &LoginResult{UserID: account.ID(), PlayerID: account.PlayerID(), Token: token.String(), Nickname: account.Nickname().String()}, nil
+	h.EventBus.Publish(domain.NewAccountLoggedIn(cmd.UserID))
+	return ddd.NoResult{}, nil
 }
 
 // LogoutHandler 处理登出命令。

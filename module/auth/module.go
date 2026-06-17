@@ -8,8 +8,6 @@
 package auth
 
 import (
-	"context"
-
 	"github.com/dobyte/due/v2/cluster"
 	"github.com/dobyte/due/v2/cluster/node"
 	"github.com/dobyte/due/v2/log"
@@ -19,7 +17,6 @@ import (
 	"github.com/skeletongo/game-stack/module/auth/internal/domain"
 	interfaces "github.com/skeletongo/game-stack/module/auth/internal/interface"
 	svcserver "github.com/skeletongo/game-stack/module/auth/internal/svc"
-	"github.com/skeletongo/game-stack/module/clean"
 	"github.com/skeletongo/game-stack/stack"
 	"github.com/skeletongo/game-stack/stack/debug"
 )
@@ -58,6 +55,7 @@ func (m *authModule) Init(proxy *node.Proxy) error {
 	// ---- 应用层：命令处理器 ----
 	ddd.Register(cmdBus, application.CmdRegister, &application.RegisterHandler{Repo: repo, EventBus: eventBus})
 	ddd.Register(cmdBus, application.CmdLogin, &application.LoginHandler{Repo: repo, EventBus: eventBus})
+	ddd.Register(cmdBus, application.CmdMarkOnline, &application.MarkOnlineHandler{Repo: repo, EventBus: eventBus})
 	ddd.Register(cmdBus, application.CmdLogout, &application.LogoutHandler{Repo: repo, EventBus: eventBus})
 	ddd.Register(cmdBus, application.CmdRefreshToken, &application.RefreshTokenHandler{Repo: repo})
 
@@ -72,13 +70,41 @@ func (m *authModule) Init(proxy *node.Proxy) error {
 	proxy.AddRouteHandler(stack.RouteAuthLogout, routes.HandleLogout, stack.StatefulAuthorizedRoute)
 	proxy.AddRouteHandler(stack.RouteAuthTokenRefresh, routes.HandleRefresh, stack.StatefulAuthorizedRoute)
 
-	// 连接/断开事件（全集群广播）
-	cleaner := clean.Get()
-	proxy.AddEventHandler(cluster.Connect, cleaner.HandleConnect)
-	proxy.AddEventHandler(cluster.Disconnect, cleaner.HandleDisconnect)
+	// 注册玩家生命周期回调（断线标记离线）
+	stack.AddEventHandler(cluster.Disconnect, func(ctx node.Context) {
+		uid := ctx.UID()
 
-	// 注册清理回调（Grace Period 到期后清除 token）
-	cleaner.Register(&cleanableAdapter{repo: repo})
+		gid, err := ctx.Proxy().LocateGate(ctx.Context(), uid)
+		if err != nil {
+			log.Warnf("[auth] disconnect gate check failed: uid=%d err=%v", uid, err)
+			return
+		}
+		if gid != "" && gid != ctx.GID() {
+			log.Debugf("[auth] stale disconnect ignored: uid=%d current_gid=%s event_gid=%s", uid, gid, ctx.GID())
+			return
+		}
+
+		nid, err := ctx.Proxy().LocateNode(ctx.Context(), uid, ctx.Proxy().GetName())
+		if err != nil {
+			log.Warnf("[auth] disconnect ownership check failed: uid=%d err=%v", uid, err)
+			return
+		}
+
+		if nid != ctx.Proxy().GetID() {
+			return
+		}
+
+		account, err := repo.Load(ctx.Context(), uid)
+		if err != nil {
+			return
+		}
+		account.SetOffline()
+		if err = repo.Save(ctx.Context(), account); err != nil {
+			return
+		}
+
+		eventBus.Publish(domain.NewAccountDisconnect(uid))
+	})
 
 	// 注册跨模块 Service（供其他模块通过 stack.GetService("auth") 获取）
 	stack.RegisterService(name, svcserver.New(repo))
@@ -88,14 +114,4 @@ func (m *authModule) Init(proxy *node.Proxy) error {
 
 	log.Infof("[auth] module initialized (DDD)")
 	return nil
-}
-
-// cleanableAdapter 适配 AccountRepository → clean.CleanablePlayer。
-type cleanableAdapter struct {
-	repo domain.AccountRepository
-}
-
-// CleanPlayerData 清理玩家认证数据（断线 Grace Period 到期时调用）。
-func (a *cleanableAdapter) CleanPlayerData(ctx context.Context, uid int64) error {
-	return a.repo.Delete(ctx, uid)
 }

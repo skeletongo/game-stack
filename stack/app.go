@@ -45,6 +45,7 @@ func (a *Application) Run() {
 	n := a.buildNode()
 
 	proxy := n.Proxy()
+	Set(proxy)
 
 	for _, m := range a.opts.modules {
 		log.Infof("initializing module: %s", m.Name())
@@ -52,6 +53,8 @@ func (a *Application) Run() {
 			log.Fatalf("module %s init failed: %v", m.Name(), err)
 		}
 	}
+
+	Init()
 
 	// 启动 debug HTTP 服务（可选）
 	if a.opts.debugAddr != "" {

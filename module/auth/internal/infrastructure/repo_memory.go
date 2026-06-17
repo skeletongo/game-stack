@@ -43,6 +43,11 @@ func (r *MemoryRepo) Load(_ context.Context, id int64) (*domain.Account, error) 
 func (r *MemoryRepo) Save(_ context.Context, a *domain.Account) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	for token, id := range r.byToken {
+		if id == a.ID() {
+			delete(r.byToken, token)
+		}
+	}
 	r.accounts[a.ID()] = a
 	r.byName[a.Username().String()] = a.ID()
 	if !a.Token().IsEmpty() {

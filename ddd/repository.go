@@ -9,8 +9,8 @@ import "context"
 //
 // 设计决策：
 //   - 以聚合为单位：Load 加载完整聚合，Save 保存完整聚合
-//   - Load 在内存中不存在时应从持久存储重新加载（支持 Grace Period 后的恢复）
-//   - Save 应为幂等操作（支持 CleanPlayerData 重试）
+//   - Save 应为幂等操作
+//   - Delete 删除数据
 //
 // 使用泛型而非 any + 类型断言，编译期保证类型安全。
 type Repository[T Aggregate] interface {

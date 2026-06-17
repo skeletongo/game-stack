@@ -218,8 +218,6 @@ func WithStore(s Store) Option {
 func serviceGo(name, nameTitle string) string {
 	return fmt.Sprintf(`package %[1]s
 
-import "context"
-
 // Service %[2]s模块对外的服务接口。
 type Service interface {
 	// TODO: 添加服务方法
@@ -231,12 +229,6 @@ type service struct {
 
 func newService(store Store) *service {
 	return &service{store: store}
-}
-
-// CleanPlayerData 实现 stack.CleanableService，断线时清理玩家内存数据。
-func (s *service) CleanPlayerData(uid int64) error {
-	// TODO: 实现清理逻辑
-	return nil
 }
 `, name, nameTitle)
 }
@@ -293,11 +285,6 @@ func (m *%[1]sModule) Init(proxy *node.Proxy) error {
 	impl := newImpl(o.store)
 
 	// TODO: 注册路由
-
-	// 注册玩家数据清理方法
-	if c, ok := stack.GetService("cleaner").(*stack.PlayerDoneCleaner); ok {
-		c.Register(impl.svc)
-	}
 
 	// 注册内部服务接口，供其它模块使用
 	stack.RegisterService(name, impl.svc)

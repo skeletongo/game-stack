@@ -25,6 +25,16 @@ type LoginCmd struct {
 
 func (c LoginCmd) CommandName() string { return CmdLogin }
 
+const CmdMarkOnline = "auth.mark_online"
+
+type MarkOnlineCmd struct {
+	UserID int64
+	Token  string
+	GID    string
+}
+
+func (c MarkOnlineCmd) CommandName() string { return CmdMarkOnline }
+
 // LogoutCmd 登出命令。
 type LogoutCmd struct{ UserID int64 }
 

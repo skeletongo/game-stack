@@ -69,8 +69,3 @@ func (r *MemoryRepo) FindByNickname(_ context.Context, nickname string) (*domain
 	}
 	return r.players[id], nil
 }
-
-// CleanPlayerData 清理玩家内存数据（断线 Grace Period 到期时调用）。
-func (r *MemoryRepo) CleanPlayerData(uid int64) error {
-	return r.Delete(context.Background(), uid)
-}

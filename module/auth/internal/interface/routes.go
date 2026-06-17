@@ -4,7 +4,7 @@
 //   - 路由处理器：解析 proto 消息 → 通过 CommandBus 分发 → 构建响应
 //   - 框架适配：BindGate/BindNode 等 due 框架操作
 //
-// 注意：Connect/Disconnect 事件已移至 module/clean 统一处理。
+// 注意：Connect/Disconnect 事件已移至 module/playerlife 统一处理。
 package interfaces
 
 import (
@@ -15,8 +15,8 @@ import (
 	"github.com/dobyte/due/v2/log"
 	"github.com/dobyte/due/v2/session"
 	"github.com/skeletongo/game-stack/ddd"
-
 	"github.com/skeletongo/game-stack/module/auth/internal/application"
+	"github.com/skeletongo/game-stack/module/playerlife"
 	"github.com/skeletongo/game-stack/proto/auth"
 	"github.com/skeletongo/game-stack/proto/common"
 	"github.com/skeletongo/game-stack/stack"
@@ -85,6 +85,22 @@ func (h *Handlers) HandleLogin(ctx node.Context) {
 			stack.ProtoResponse(ctx, &auth.LoginResponse{Code: int32(common.SysError_INTERNAL_ERROR), Message: err.Error()})
 			return
 		}
+		if err := h.markOnline(ctx, result.UserID, result.Token); err != nil {
+			stack.ProtoResponse(ctx, &auth.LoginResponse{Code: int32(common.SysError_INTERNAL_ERROR), Message: err.Error()})
+			return
+		}
+		playerlife.Get().OnLogin(ctx.Context(), result.UserID)
+	} else if boundNid == h.proxy.GetID() {
+		if err := h.markOnline(ctx, result.UserID, result.Token); err != nil {
+			stack.ProtoResponse(ctx, &auth.LoginResponse{Code: int32(common.SysError_INTERNAL_ERROR), Message: err.Error()})
+			return
+		}
+		playerlife.Get().OnLogin(ctx.Context(), result.UserID)
+	} else {
+		if err := h.markOnline(ctx, result.UserID, result.Token); err != nil {
+			stack.ProtoResponse(ctx, &auth.LoginResponse{Code: int32(common.SysError_INTERNAL_ERROR), Message: err.Error()})
+			return
+		}
 	}
 	// 重连且绑定在其他节点：不操作，旧节点通过 Connect 事件感知
 	stack.ProtoResponse(ctx, &auth.LoginResponse{
@@ -129,7 +145,20 @@ func (h *Handlers) HandleRegister(ctx node.Context) {
 		stack.ProtoResponse(ctx, &auth.RegisterResponse{Code: int32(common.SysError_INTERNAL_ERROR), Message: err.Error()})
 		return
 	}
+	if err := h.markOnline(ctx, result.UserID, result.Token); err != nil {
+		stack.ProtoResponse(ctx, &auth.RegisterResponse{Code: int32(common.SysError_INTERNAL_ERROR), Message: err.Error()})
+		return
+	}
+	playerlife.Get().OnLogin(ctx.Context(), result.UserID)
 	stack.ProtoResponse(ctx, &auth.RegisterResponse{Code: stack.CodeOK, Token: result.Token, PlayerId: result.PlayerID})
+}
+
+func (h *Handlers) markOnline(ctx node.Context, uid int64, token string) error {
+	_, err := h.cmdBus.Dispatch(ctx.Context(), application.MarkOnlineCmd{UserID: uid, Token: token, GID: ctx.GID()})
+	if err != nil {
+		log.Errorf("[auth] mark online failed: uid=%d gid=%s err=%v", uid, ctx.GID(), err)
+	}
+	return err
 }
 
 // HandleLogout 处理登出请求。

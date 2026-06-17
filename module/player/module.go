@@ -8,11 +8,8 @@
 package player
 
 import (
-	"context"
-
 	"github.com/dobyte/due/v2/cluster/node"
 	"github.com/dobyte/due/v2/log"
-	"github.com/skeletongo/game-stack/module/clean"
 
 	"github.com/skeletongo/game-stack/ddd"
 	"github.com/skeletongo/game-stack/module/actor"
@@ -78,19 +75,10 @@ func (m *playerModule) Init(proxy *node.Proxy) error {
 	proxy.AddRouteHandler(stack.RoutePlayerGetInfo, routes.HandleGetInfo, stack.StatefulAuthorizedRoute)
 
 	// 写操作路由（走 Actor 串行化）
-	proxy.AddRouteHandler(stack.RoutePlayerSetAvatar, actor.RouteToActor(actor.KindPlayer), stack.StatefulAuthorizedRoute)
-
-	// 注册 Actor 路由处理器（每个 Actor Spawn 时自动应用）
-	actor.RegisterRouteInitializer(func(act *node.Actor) {
-		act.AddRouteHandler(stack.RoutePlayerSetAvatar, routes.HandleSetAvatarActor)
-	})
+	actor.AddPlayerRouteHandler(proxy, stack.RoutePlayerSetAvatar, routes.HandleSetAvatarActor, stack.StatefulAuthorizedRoute)
 
 	// 注册 RPC 服务（供其他节点调用）
 	rpcserver.Register(name, proxy, repo)
-
-	// 注册清理回调（Grace Period 到期后清除玩家内存数据）
-	cleaner := clean.Get()
-	cleaner.Register(&cleanableAdapter{repo: repo})
 
 	// 注册跨模块 Service（供其他模块通过 stack.GetService("player") 获取）
 	stack.RegisterService(name, svcserver.New(repo, cmdBus, proxy))
@@ -100,14 +88,4 @@ func (m *playerModule) Init(proxy *node.Proxy) error {
 
 	log.Infof("[player] module initialized (DDD)")
 	return nil
-}
-
-// cleanableAdapter 适配 PlayerRepository → clean.CleanablePlayer。
-type cleanableAdapter struct {
-	repo domain.PlayerRepository
-}
-
-// CleanPlayerData 清理玩家内存数据（断线 Grace Period 到期时调用）。
-func (a *cleanableAdapter) CleanPlayerData(ctx context.Context, uid int64) error {
-	return a.repo.Delete(ctx, uid)
 }

@@ -3,7 +3,7 @@
 // 核心机制：
 //  1. 每个在线玩家对应一个 PlayerActor。登录时 Spawn，断线时 Kill。
 //  2. Kill 时 mailbox 和 fnChan 关闭，所有排队消息被丢弃 → 消除断线幽灵消息。
-//  3. 模块通过 RegisterRouteInitializer 注册 Actor 上的路由处理器。
+//  3. 模块通过 registerPlayerRouteInitializer 注册 Actor 上的路由处理器。
 //     Spawn 时自动应用所有已注册的初始化器。
 //
 // 三种使用模式：
@@ -37,18 +37,18 @@ import (
 
 const KindPlayer = "player"
 
-// RouteInitializer 在 Actor 创建后调用，用于注册路由和事件处理器。
+// playerRouteInitializer 在 Actor 创建后调用，用于注册路由和事件处理器。
 // 此回调在 Actor 的 Init 阶段、Start 之前执行。
-type RouteInitializer func(actor *node.Actor)
+type playerRouteInitializer func(actor *node.Actor)
 
 var (
 	mu                sync.Mutex
-	routeInitializers []RouteInitializer
+	routeInitializers []playerRouteInitializer
 )
 
-// RegisterRouteInitializer 注册一个 Actor 路由初始化器。
+// registerPlayerRouteInitializer 注册一个 Actor 路由初始化器。
 // 在模块的 Init() 中调用。SpawnPlayer 时会应用所有已注册的初始化器。
-func RegisterRouteInitializer(fn RouteInitializer) {
+func registerPlayerRouteInitializer(fn playerRouteInitializer) {
 	mu.Lock()
 	defer mu.Unlock()
 	routeInitializers = append(routeInitializers, fn)
@@ -64,7 +64,7 @@ func SpawnPlayer(proxy *node.Proxy, uid int64) (*node.Actor, error) {
 
 			// 应用所有模块注册的 Actor 路由初始化器
 			mu.Lock()
-			initializers := make([]RouteInitializer, len(routeInitializers))
+			initializers := make([]playerRouteInitializer, len(routeInitializers))
 			copy(initializers, routeInitializers)
 			mu.Unlock()
 
@@ -184,14 +184,14 @@ func InvokePlayerSync[T any](ctx context.Context, proxy *node.Proxy, uid int64, 
 	}
 }
 
-// RouteToActor 返回一个 Node 路由处理器，将消息投递到 Actor mailbox 串行处理。
+// routeToPlayerActor 返回一个 Node 路由处理器，将消息投递到 Actor mailbox 串行处理。
 //
 // 归属权由 due 框架的 StatefulRoute 保证——gate 通过 Locator 定位玩家
 // 绑定节点后才投递，消息不会到达旧节点。
 //
-// 配合 StatefulAuthorizedRoute 使用。使用 RouteToActor 时，必须同时调用
-// RegisterRouteInitializer 为 Actor 注册实际的路由处理器。
-func RouteToActor(kind string) node.RouteHandler {
+// 配合 StatefulAuthorizedRoute 使用。使用 routeToPlayerActor 时，必须同时调用
+// registerPlayerRouteInitializer 为 Actor 注册实际的路由处理器。
+func routeToPlayerActor(kind string) node.RouteHandler {
 	return func(ctx node.Context) {
 		uid := ctx.UID()
 		if uid == 0 {
@@ -223,4 +223,12 @@ func (p *playerProc) Init()  { log.Debugf("[actor] init: uid=%d", p.uid) }
 func (p *playerProc) Start() { log.Debugf("[actor] start: uid=%d", p.uid) }
 func (p *playerProc) Destroy() {
 	log.Infof("[actor] destroyed: uid=%d", p.uid)
+}
+
+// AddPlayerRouteHandler 给玩家Actor注册路由
+func AddPlayerRouteHandler(proxy *node.Proxy, route int32, handler node.RouteHandler, opts ...node.RouteOptions) {
+	proxy.AddRouteHandler(route, routeToPlayerActor(KindPlayer), opts...)
+	registerPlayerRouteInitializer(func(act *node.Actor) {
+		act.AddRouteHandler(route, handler)
+	})
 }

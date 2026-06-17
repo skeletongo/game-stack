@@ -4,10 +4,11 @@ import "time"
 
 // 领域事件名称常量。
 const (
-	EventAccountCreated   = "auth.account_created"
-	EventAccountLoggedIn  = "auth.account_logged_in"
-	EventAccountLoggedOut = "auth.account_logged_out"
-	EventAccountBanned    = "auth.account_banned"
+	EventAccountCreated    = "auth.account_created"
+	EventAccountLoggedIn   = "auth.account_logged_in"
+	EventAccountLoggedOut  = "auth.account_logged_out"
+	EventAccountBanned     = "auth.account_banned"
+	EventAccountDisconnect = "auth.account_disconnect"
 )
 
 // AccountCreated 账户创建事件。
@@ -62,3 +63,17 @@ func NewAccountBanned(userID int64) AccountBanned {
 func (e AccountBanned) AggregateID() int64    { return e.userID }
 func (e AccountBanned) EventName() string     { return EventAccountBanned }
 func (e AccountBanned) OccurredAt() time.Time { return e.occurredAt }
+
+// AccountDisconnect 玩家掉线事件。
+
+type AccountDisconnect struct {
+	userID     int64
+	occurredAt time.Time
+}
+
+func NewAccountDisconnect(userID int64) AccountDisconnect {
+	return AccountDisconnect{userID: userID, occurredAt: time.Now()}
+}
+func (e AccountDisconnect) AggregateID() int64    { return e.userID }
+func (e AccountDisconnect) EventName() string     { return EventAccountDisconnect }
+func (e AccountDisconnect) OccurredAt() time.Time { return e.occurredAt }
