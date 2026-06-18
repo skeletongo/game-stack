@@ -57,3 +57,33 @@ packet:
   byteOrder: big
   routeBytes: 4
   seqBytes: 4
+
+jwt:
+  default:
+    # jwt发行方
+    issuer: "gamestack"
+    # 过期时间
+    validDuration: 7200000
+    # 刷新时间
+    refreshDuration: 7200000
+    # 秘钥KEY
+    secretKey: "FkGI8sOLiOYwxZxpM4Vt1lgQ5O4JSNj4"
+    # token域
+    audienceKey: "gamestack"
+    # TOKEN查找位置
+    locations: "query:token"
+    # 存储组件
+    store:
+      # 客户端连接地址
+      addrs:
+        - 127.0.0.1:6379
+      # 数据库号
+      db: 4
+      # 用户名
+      username: ""
+      # 密码
+      password: ""
+      # 最大重试次数
+      maxRetries: 3
+      # 前缀
+      prefix: "gamestack"

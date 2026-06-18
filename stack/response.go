@@ -3,6 +3,7 @@ package stack
 import (
 	"github.com/dobyte/due/v2/cluster/node"
 	"github.com/dobyte/due/v2/log"
+	"github.com/skeletongo/game-stack/internal/logfmt"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -11,6 +12,8 @@ import (
 //==========================
 
 func ProtoResponse(ctx node.Context, pb proto.Message) {
+	log.Debugf("<== route=%d uid=%d cid=%d msg=%T payload=%s",
+		ctx.Route(), ctx.UID(), ctx.CID(), pb, logfmt.ProtoJSON(pb))
 	_ = ctx.Response(pb)
 }
 

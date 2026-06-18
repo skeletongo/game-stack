@@ -6,6 +6,8 @@ import (
 	"sync"
 
 	"github.com/dobyte/due/v2/log"
+
+	"github.com/skeletongo/game-stack/internal/logfmt"
 )
 
 // NoResult 是命令无返回值时使用的占位结果类型。
@@ -78,6 +80,7 @@ func Register[C Command, T any](bus *CommandBus, cmdName string, handler Command
 			if !ok {
 				return nil, fmt.Errorf("command type mismatch")
 			}
+			log.Debugf("==> cmd=%s type=%T payload=%s", cmd.CommandName(), cmd, logfmt.JSON(cmd))
 			return handler.Handle(ctx, c)
 		},
 	}

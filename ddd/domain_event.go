@@ -58,6 +58,8 @@ func (b *EventBus) Subscribe(eventName string, handler EventHandler) {
 // Publish 同步派发领域事件。所有注册的处理器依次执行。
 // 某个处理器的 panic 会被 recover，不会中断后续处理器的执行。
 func (b *EventBus) Publish(event DomainEvent) {
+	log.Debugf("** event=%s type=%T aggregate=%d occurred_at=%s",
+		event.EventName(), event, event.AggregateID(), event.OccurredAt().Format(time.RFC3339Nano))
 	b.mu.RLock()
 	handlers := b.handlers[event.EventName()]
 	// 复制一份避免长时间持锁

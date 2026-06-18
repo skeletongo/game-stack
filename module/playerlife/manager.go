@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/dobyte/due/v2/cluster/node"
+	"github.com/dobyte/due/v2/errors"
 	"github.com/dobyte/due/v2/log"
 
 	"github.com/skeletongo/game-stack/module/actor"
@@ -80,7 +81,7 @@ func (m *Manager) cleanup(ctx context.Context, uid int64) {
 	m.mu.Unlock()
 
 	gid, err := m.proxy.LocateGate(ctx, uid)
-	if err != nil {
+	if err != nil && !errors.Is(err, errors.ErrNotFoundUserLocation) {
 		m.scheduleRetry(uid, retries, fmt.Errorf("locate gate: %w", err))
 		return
 	}
@@ -166,7 +167,7 @@ func (m *Manager) handleDisconnect(ctx node.Context) {
 		return
 	}
 	gid, err := m.proxy.LocateGate(ctx.Context(), uid)
-	if err != nil {
+	if err != nil && !errors.Is(err, errors.ErrNotFoundUserLocation) {
 		log.Warnf("[playerlife] disconnect gate check failed: uid=%d err=%v", uid, err)
 		return
 	}

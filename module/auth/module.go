@@ -13,6 +13,7 @@ import (
 
 	"github.com/dobyte/due/v2/cluster"
 	"github.com/dobyte/due/v2/cluster/node"
+	"github.com/dobyte/due/v2/errors"
 	"github.com/dobyte/due/v2/log"
 	"github.com/skeletongo/game-stack/component/jwt"
 
@@ -81,7 +82,7 @@ func (m *authModule) Init(proxy *node.Proxy) error {
 		uid := ctx.UID()
 
 		gid, err := ctx.Proxy().LocateGate(ctx.Context(), uid)
-		if err != nil {
+		if err != nil && !errors.Is(err, errors.ErrNotFoundUserLocation) {
 			log.Warnf("[auth] disconnect gate check failed: uid=%d err=%v", uid, err)
 			return
 		}
@@ -91,11 +92,10 @@ func (m *authModule) Init(proxy *node.Proxy) error {
 		}
 
 		nid, err := ctx.Proxy().LocateNode(ctx.Context(), uid, ctx.Proxy().GetName())
-		if err != nil {
+		if err != nil && !errors.Is(err, errors.ErrNotFoundUserLocation) {
 			log.Warnf("[auth] disconnect ownership check failed: uid=%d err=%v", uid, err)
 			return
 		}
-
 		if nid != ctx.Proxy().GetID() {
 			return
 		}

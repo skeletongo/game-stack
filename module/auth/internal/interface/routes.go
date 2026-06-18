@@ -12,6 +12,7 @@ import (
 
 	"github.com/dobyte/due/v2/cluster"
 	"github.com/dobyte/due/v2/cluster/node"
+	"github.com/dobyte/due/v2/errors"
 	"github.com/dobyte/due/v2/log"
 	"github.com/dobyte/due/v2/session"
 
@@ -57,7 +58,7 @@ func (h *Handlers) HandleRegister(ctx node.Context) {
 	result, err := ddd.Dispatch[*application.RegisterResult](ctx.Context(), h.cmdBus,
 		application.RegisterCmd{Username: req.Username, Password: req.Password, Nickname: req.Nickname})
 	if err != nil {
-		log.Errorf("[auth] HandleRegister failed: %v", err)
+		log.Warnf("[auth] HandleRegister failed: %v", err)
 		stack.ProtoResponse(ctx, &auth.RegisterResponse{Code: stack.ErrCode(err), Message: err.Error()})
 		return
 	}
@@ -98,7 +99,7 @@ func (h *Handlers) HandleLogin(ctx node.Context) {
 	result, err := ddd.Dispatch[*application.LoginResult](ctx.Context(), h.cmdBus,
 		application.LoginCmd{Username: req.Username, Password: req.Password})
 	if err != nil {
-		log.Errorf("[auth] HandleLogin failed: %v", err)
+		log.Warnf("[auth] HandleLogin failed: %v", err)
 		stack.ProtoResponse(ctx, &auth.LoginResponse{Code: stack.ErrCode(err), Message: err.Error()})
 		return
 	}
@@ -121,13 +122,13 @@ func (h *Handlers) HandleLogin(ctx node.Context) {
 	}
 
 	boundNid, err := h.proxy.LocateNode(ctx.Context(), result.UserID, h.proxy.GetName())
-	if err != nil {
+	if err != nil && !errors.Is(err, errors.ErrNotFoundUserLocation) {
 		log.Errorf("[auth] HandleLogin LocateNode failed: %v", err)
 		stack.ProtoResponse(ctx, &auth.LoginResponse{Code: stack.ErrInternalError.Code, Message: stack.ErrInternalError.Message})
 		return
 	}
-	isReconnect := boundNid != ""
-	if !isReconnect {
+
+	if boundNid == "" || !h.proxy.HasNode(boundNid) {
 		// 首次登录：绑定当前节点 + 创建 Actor
 		if err := ctx.BindNode(result.UserID); err != nil {
 			log.Errorf("[auth] HandleLogin BindNode failed: %v", err)
@@ -178,7 +179,7 @@ func (h *Handlers) HandleRefresh(ctx node.Context) {
 	}
 	result, err := ddd.Dispatch[*application.RefreshTokenResult](ctx.Context(), h.cmdBus, application.RefreshTokenCmd{UserID: ctx.UID(), Token: req.Token})
 	if err != nil {
-		log.Errorf("[auth] HandleRefresh failed: %v", err)
+		log.Warnf("[auth] HandleRefresh failed: %v", err)
 		stack.ProtoResponse(ctx, &auth.TokenRefreshResponse{Code: stack.ErrCode(err), Message: err.Error()})
 		return
 	}

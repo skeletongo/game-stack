@@ -20,7 +20,7 @@ type (
 )
 
 type Config struct {
-	Address    []string `json:"address"`
+	Addrs      []string `json:"addrs"`
 	DB         int      `json:"db"`
 	Username   string   `json:"username"`
 	Password   string   `json:"password"`
@@ -72,7 +72,7 @@ func NewInstance[T string | Config | *Config](config T) Redis {
 	}
 
 	cli := redis.NewUniversalClient(&redis.UniversalOptions{
-		Addrs:      conf.Address,
+		Addrs:      conf.Addrs,
 		DB:         conf.DB,
 		Username:   conf.Username,
 		Password:   conf.Password,
