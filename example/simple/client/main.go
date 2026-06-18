@@ -43,7 +43,11 @@ func main() {
 			log.Errorf("parse register resp failed: %v", err)
 			return
 		}
-		log.Infof("<<< [register] ok: player_id=%d token=%s", resp.PlayerId, resp.Token)
+		if resp.Code != stack.CodeOK {
+			log.Errorf("<<< [register] failed: code=%d message=%s", resp.Code, resp.Message)
+			return
+		}
+		log.Infof("<<< [register] ok")
 
 		// 注册成功 → 登录
 		log.Infof(">>> [login] username=%s", creds.username)
@@ -66,8 +70,8 @@ func main() {
 			log.Errorf("parse login resp failed: %v", err)
 			return
 		}
-		log.Infof("<<< [login] ok: player_id=%d token=%s is_new=%v",
-			resp.PlayerId, resp.Token, resp.IsNewPlayer)
+		log.Infof("<<< [login] ok: player_id=%d token=%s expires_at=%d is_new=%v",
+			resp.PlayerId, resp.Token, resp.ExpiresAt, resp.IsNewPlayer)
 		log.Infof("=== test complete ===")
 	})
 

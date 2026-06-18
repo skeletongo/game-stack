@@ -11,6 +11,7 @@ import (
 	"github.com/dobyte/due/v2/cluster"
 	"github.com/dobyte/due/v2/cluster/node"
 	"github.com/dobyte/due/v2/log"
+	"github.com/skeletongo/game-stack/component/jwt"
 
 	"github.com/skeletongo/game-stack/ddd"
 	"github.com/skeletongo/game-stack/module/auth/internal/application"
@@ -47,6 +48,7 @@ func (m *authModule) Init(proxy *node.Proxy) error {
 
 	// ---- 基础设施层 ----
 	repo := o.repo
+	jt := jwt.Instance()
 
 	// ---- 领域层 ----
 	eventBus := ddd.NewEventBus()
@@ -54,10 +56,10 @@ func (m *authModule) Init(proxy *node.Proxy) error {
 
 	// ---- 应用层：命令处理器 ----
 	ddd.Register(cmdBus, application.CmdRegister, &application.RegisterHandler{Repo: repo, EventBus: eventBus})
-	ddd.Register(cmdBus, application.CmdLogin, &application.LoginHandler{Repo: repo, EventBus: eventBus})
+	ddd.Register(cmdBus, application.CmdLogin, &application.LoginHandler{Repo: repo, EventBus: eventBus, Jwt: jt})
 	ddd.Register(cmdBus, application.CmdMarkOnline, &application.MarkOnlineHandler{Repo: repo, EventBus: eventBus})
-	ddd.Register(cmdBus, application.CmdLogout, &application.LogoutHandler{Repo: repo, EventBus: eventBus})
-	ddd.Register(cmdBus, application.CmdRefreshToken, &application.RefreshTokenHandler{Repo: repo})
+	ddd.Register(cmdBus, application.CmdLogout, &application.LogoutHandler{Repo: repo, EventBus: eventBus, Jwt: jt})
+	ddd.Register(cmdBus, application.CmdRefreshToken, &application.RefreshTokenHandler{Repo: repo, Jwt: jt})
 
 	// ---- 接口层：路由 + 事件处理器 ----
 	routes := interfaces.NewHandlers(proxy, cmdBus)
@@ -103,11 +105,12 @@ func (m *authModule) Init(proxy *node.Proxy) error {
 			return
 		}
 
+		// 离线事件
 		eventBus.Publish(domain.NewAccountDisconnect(uid))
 	})
 
 	// 注册跨模块 Service（供其他模块通过 stack.GetService("auth") 获取）
-	stack.RegisterService(name, svcserver.New(repo))
+	stack.RegisterService(name, svcserver.New(repo, jt))
 
 	// 注册到 debug 服务（运行时查询/修改数据）
 	debug.Register[*domain.Account](name, repo, cmdBus)
