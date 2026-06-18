@@ -8,6 +8,9 @@
 package auth
 
 import (
+	"context"
+	"fmt"
+
 	"github.com/dobyte/due/v2/cluster"
 	"github.com/dobyte/due/v2/cluster/node"
 	"github.com/dobyte/due/v2/log"
@@ -18,6 +21,7 @@ import (
 	"github.com/skeletongo/game-stack/module/auth/internal/domain"
 	interfaces "github.com/skeletongo/game-stack/module/auth/internal/interface"
 	svcserver "github.com/skeletongo/game-stack/module/auth/internal/svc"
+	playersvc "github.com/skeletongo/game-stack/module/player/svc"
 	"github.com/skeletongo/game-stack/stack"
 	"github.com/skeletongo/game-stack/stack/debug"
 )
@@ -55,7 +59,7 @@ func (m *authModule) Init(proxy *node.Proxy) error {
 	cmdBus := ddd.NewCommandBus()
 
 	// ---- 应用层：命令处理器 ----
-	ddd.Register(cmdBus, application.CmdRegister, &application.RegisterHandler{Repo: repo, EventBus: eventBus})
+	ddd.Register(cmdBus, application.CmdRegister, &application.RegisterHandler{Repo: repo, EventBus: eventBus, Players: playerServiceRef{}})
 	ddd.Register(cmdBus, application.CmdLogin, &application.LoginHandler{Repo: repo, EventBus: eventBus, Jwt: jt})
 	ddd.Register(cmdBus, application.CmdMarkOnline, &application.MarkOnlineHandler{Repo: repo, EventBus: eventBus})
 	ddd.Register(cmdBus, application.CmdLogout, &application.LogoutHandler{Repo: repo, EventBus: eventBus, Jwt: jt})
@@ -117,4 +121,30 @@ func (m *authModule) Init(proxy *node.Proxy) error {
 
 	log.Infof("[auth] module initialized (DDD)")
 	return nil
+}
+
+type playerServiceRef struct{}
+
+func (playerServiceRef) service() (playersvc.IPlayer, error) {
+	players, ok := stack.GetService("player").(playersvc.IPlayer)
+	if !ok {
+		return nil, fmt.Errorf("player service not registered")
+	}
+	return players, nil
+}
+
+func (r playerServiceRef) CreatePlayer(ctx context.Context, id int64, nickname string) error {
+	players, err := r.service()
+	if err != nil {
+		return err
+	}
+	return players.CreatePlayer(ctx, id, nickname)
+}
+
+func (r playerServiceRef) DeletePlayer(ctx context.Context, id int64) error {
+	players, err := r.service()
+	if err != nil {
+		return err
+	}
+	return players.DeletePlayer(ctx, id)
 }

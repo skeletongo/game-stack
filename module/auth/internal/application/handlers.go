@@ -2,7 +2,6 @@ package application
 
 import (
 	"context"
-	"fmt"
 	"strconv"
 	"time"
 
@@ -12,14 +11,19 @@ import (
 	"github.com/skeletongo/game-stack/component/jwt"
 	"github.com/skeletongo/game-stack/ddd"
 	"github.com/skeletongo/game-stack/module/auth/internal/domain"
-	playersvc "github.com/skeletongo/game-stack/module/player/svc"
 	"github.com/skeletongo/game-stack/stack"
 )
+
+type PlayerRegistrar interface {
+	CreatePlayer(ctx context.Context, id int64, nickname string) error
+	DeletePlayer(ctx context.Context, id int64) error
+}
 
 // RegisterHandler 处理注册命令。
 type RegisterHandler struct {
 	Repo     domain.AccountRepository
 	EventBus *ddd.EventBus
+	Players  PlayerRegistrar
 }
 
 // RegisterResult 注册命令的返回结果。
@@ -39,15 +43,11 @@ func (h *RegisterHandler) Handle(ctx context.Context, cmd RegisterCmd) (*Registe
 	if err != nil {
 		return nil, err
 	}
-	players, ok := stack.GetService("player").(playersvc.IPlayer)
-	if !ok {
-		return nil, fmt.Errorf("player service not registered")
-	}
-	if err := players.CreatePlayer(ctx, playerID, cmd.Nickname); err != nil {
+	if err := h.Players.CreatePlayer(ctx, playerID, cmd.Nickname); err != nil {
 		return nil, err
 	}
 	if err := h.Repo.Save(ctx, account); err != nil {
-		_ = players.DeletePlayer(ctx, playerID)
+		_ = h.Players.DeletePlayer(ctx, playerID)
 		return nil, err
 	}
 	h.EventBus.Publish(domain.NewAccountCreated(userID, cmd.Username))
