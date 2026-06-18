@@ -11,9 +11,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/dobyte/due/v2/cluster"
 	"github.com/dobyte/due/v2/cluster/node"
-	"github.com/dobyte/due/v2/errors"
 	"github.com/dobyte/due/v2/log"
 	"github.com/skeletongo/game-stack/component/jwt"
 
@@ -62,7 +60,6 @@ func (m *authModule) Init(proxy *node.Proxy) error {
 	// ---- 应用层：命令处理器 ----
 	ddd.Register(cmdBus, application.CmdRegister, &application.RegisterHandler{Repo: repo, EventBus: eventBus, Players: playerServiceRef{}})
 	ddd.Register(cmdBus, application.CmdLogin, &application.LoginHandler{Repo: repo, EventBus: eventBus, Jwt: jt})
-	ddd.Register(cmdBus, application.CmdMarkOnline, &application.MarkOnlineHandler{Repo: repo, EventBus: eventBus})
 	ddd.Register(cmdBus, application.CmdLogout, &application.LogoutHandler{Repo: repo, EventBus: eventBus, Jwt: jt})
 	ddd.Register(cmdBus, application.CmdRefreshToken, &application.RefreshTokenHandler{Repo: repo, Jwt: jt})
 
@@ -73,48 +70,12 @@ func (m *authModule) Init(proxy *node.Proxy) error {
 	proxy.AddRouteHandler(stack.RouteAuthLogin, routes.HandleLogin)
 	proxy.AddRouteHandler(stack.RouteAuthRegister, routes.HandleRegister)
 
-	// 有状态 + 认证路由
-	proxy.AddRouteHandler(stack.RouteAuthLogout, routes.HandleLogout, stack.StatefulAuthorizedRoute)
-	proxy.AddRouteHandler(stack.RouteAuthTokenRefresh, routes.HandleRefresh, stack.StatefulAuthorizedRoute)
-
-	// 注册玩家生命周期回调（断线标记离线）
-	stack.AddEventHandler(cluster.Disconnect, func(ctx node.Context) {
-		uid := ctx.UID()
-
-		gid, err := ctx.Proxy().LocateGate(ctx.Context(), uid)
-		if err != nil && !errors.Is(err, errors.ErrNotFoundUserLocation) {
-			log.Warnf("[auth] disconnect gate check failed: uid=%d err=%v", uid, err)
-			return
-		}
-		if gid != "" && gid != ctx.GID() {
-			log.Debugf("[auth] stale disconnect ignored: uid=%d current_gid=%s event_gid=%s", uid, gid, ctx.GID())
-			return
-		}
-
-		nid, err := ctx.Proxy().LocateNode(ctx.Context(), uid, ctx.Proxy().GetName())
-		if err != nil && !errors.Is(err, errors.ErrNotFoundUserLocation) {
-			log.Warnf("[auth] disconnect ownership check failed: uid=%d err=%v", uid, err)
-			return
-		}
-		if nid != ctx.Proxy().GetID() {
-			return
-		}
-
-		account, err := repo.Load(ctx.Context(), uid)
-		if err != nil {
-			return
-		}
-		account.SetOffline()
-		if err = repo.Save(ctx.Context(), account); err != nil {
-			return
-		}
-
-		// 离线事件
-		eventBus.Publish(domain.NewAccountDisconnect(uid))
-	})
+	// 无状态 + 认证路由
+	proxy.AddRouteHandler(stack.RouteAuthLogout, routes.HandleLogout, node.AuthorizedRoute)
+	proxy.AddRouteHandler(stack.RouteAuthTokenRefresh, routes.HandleRefresh, node.AuthorizedRoute)
 
 	// 注册跨模块 Service（供其他模块通过 stack.GetService("auth") 获取）
-	stack.RegisterService(name, svcserver.New(repo, jt))
+	stack.RegisterService(name, svcserver.New(repo, jt, proxy))
 
 	// 注册到 debug 服务（运行时查询/修改数据）
 	debug.Register[*domain.Account](name, repo, cmdBus)

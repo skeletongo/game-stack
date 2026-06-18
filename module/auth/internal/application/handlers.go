@@ -87,6 +87,7 @@ func (h *LoginHandler) Handle(ctx context.Context, cmd LoginCmd) (*LoginResult, 
 	if err != nil {
 		return nil, stack.ErrInternalError
 	}
+	h.EventBus.Publish(domain.NewAccountLoggedIn(account.ID()))
 	log.Infof("[auth] account login verified: uid=%d player_id=%d username=%s", account.ID(), account.PlayerID(), cmd.Username)
 	return &LoginResult{
 		UserID:    account.ID(),
@@ -97,27 +98,6 @@ func (h *LoginHandler) Handle(ctx context.Context, cmd LoginCmd) (*LoginResult, 
 	}, nil
 }
 
-// MarkOnlineHandler 处理账号在线标记。
-type MarkOnlineHandler struct {
-	Repo     domain.AccountRepository
-	EventBus *ddd.EventBus
-}
-
-func (h *MarkOnlineHandler) Handle(ctx context.Context, cmd MarkOnlineCmd) (ddd.NoResult, error) {
-	account, err := h.Repo.Load(ctx, cmd.UserID)
-	if err != nil {
-		return ddd.NoResult{}, err
-	}
-	if err := account.Login(domain.Token(cmd.Token), cmd.GID); err != nil {
-		return ddd.NoResult{}, err
-	}
-	if err := h.Repo.Save(ctx, account); err != nil {
-		return ddd.NoResult{}, err
-	}
-	h.EventBus.Publish(domain.NewAccountLoggedIn(cmd.UserID))
-	return ddd.NoResult{}, nil
-}
-
 // LogoutHandler 处理登出命令。
 type LogoutHandler struct {
 	Repo     domain.AccountRepository
@@ -125,19 +105,13 @@ type LogoutHandler struct {
 	Jwt      *jwt.JWT
 }
 
-// Handle 执行登出：清除账户的令牌和在线状态，发布事件。
+// Handle 执行登出：清除账户的令牌，发布事件。
 func (h *LogoutHandler) Handle(ctx context.Context, cmd LogoutCmd) (ddd.NoResult, error) {
-	account, err := h.Repo.Load(ctx, cmd.UserID)
-	if err != nil {
+	if _, err := h.Repo.Load(ctx, cmd.UserID); err != nil {
 		return ddd.NoResult{}, err
 	}
-	oldToken := account.Token().String()
-	account.Logout()
-	if err := h.Repo.Save(ctx, account); err != nil {
-		return ddd.NoResult{}, err
-	}
-	if oldToken != "" && h.Jwt != nil {
-		_ = h.Jwt.DestroyToken(oldToken, true)
+	if h.Jwt != nil {
+		_ = h.Jwt.DestroyTokenBySubject(strconv.FormatInt(cmd.UserID, 10))
 	}
 	h.EventBus.Publish(domain.NewAccountLoggedOut(cmd.UserID))
 	log.Infof("[auth] account logged out: uid=%d", cmd.UserID)
@@ -156,7 +130,7 @@ type RefreshTokenResult struct {
 	ExpiresAt int64
 }
 
-// Handle 执行令牌刷新：验证旧令牌、生成新令牌、持久化。
+// Handle 执行令牌刷新：验证旧令牌并生成新令牌。
 func (h *RefreshTokenHandler) Handle(ctx context.Context, cmd RefreshTokenCmd) (*RefreshTokenResult, error) {
 	payload, err := h.Jwt.ParseToken(cmd.Token, true)
 	if err != nil {
@@ -166,21 +140,13 @@ func (h *RefreshTokenHandler) Handle(ctx context.Context, cmd RefreshTokenCmd) (
 		return nil, stack.ErrInvalidToken
 	}
 
-	account, err := h.Repo.Load(ctx, cmd.UserID)
-	if err != nil {
-		return nil, stack.ErrInvalidToken
-	}
-	if account.Token().String() != cmd.Token {
+	if _, err := h.Repo.Load(ctx, cmd.UserID); err != nil {
 		return nil, stack.ErrInvalidToken
 	}
 
 	newToken, err := h.Jwt.RefreshToken(cmd.Token, true)
 	if err != nil {
 		return nil, tokenError(err)
-	}
-	account.RefreshToken(domain.Token(newToken.Token))
-	if err := h.Repo.Save(ctx, account); err != nil {
-		return nil, err
 	}
 	return &RefreshTokenResult{Token: newToken.Token, ExpiresAt: newToken.ExpiredAt.Unix()}, nil
 }

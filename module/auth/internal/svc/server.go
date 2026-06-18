@@ -4,6 +4,7 @@ import (
 	"context"
 	"strconv"
 
+	"github.com/dobyte/due/v2/cluster/node"
 	dobytejwt "github.com/dobyte/jwt"
 
 	"github.com/skeletongo/game-stack/component/jwt"
@@ -15,14 +16,16 @@ import (
 // server 是 auth 模块对外提供的接口
 // 其他模块通过 stack.GetService("auth") 获取，类型断言为 svc.IAuth
 type server struct {
-	repo domain.AccountRepository
-	jwt  *jwt.JWT
+	repo  domain.AccountRepository
+	jwt   *jwt.JWT
+	proxy *node.Proxy
 }
 
-func New(repo domain.AccountRepository, jt *jwt.JWT) svc.IAuth {
+func New(repo domain.AccountRepository, jt *jwt.JWT, proxy *node.Proxy) svc.IAuth {
 	return &server{
-		repo: repo,
-		jwt:  jt,
+		repo:  repo,
+		jwt:   jt,
+		proxy: proxy,
 	}
 }
 
@@ -36,23 +39,22 @@ func (s *server) Authenticate(ctx context.Context, token string) (int64, error) 
 	if err != nil {
 		return 0, stack.ErrInvalidToken
 	}
-	acc, err := s.repo.Load(ctx, uid)
-	if err != nil {
+	if _, err := s.repo.Load(ctx, uid); err != nil {
 		return 0, stack.ErrInvalidToken
 	}
-	if acc.Token().String() != token {
-		return 0, stack.ErrInvalidToken
-	}
-	return acc.ID(), nil
+	return uid, nil
 }
 
 // IsOnline 检查用户是否在线（有活跃的 Gate 连接）。
 func (s *server) IsOnline(ctx context.Context, uid int64) bool {
-	acc, err := s.repo.Load(ctx, uid)
+	if s.proxy == nil {
+		return false
+	}
+	gid, err := s.proxy.LocateGate(ctx, uid)
 	if err != nil {
 		return false
 	}
-	return acc.IsOnline()
+	return gid != ""
 }
 
 func tokenError(err error) error {

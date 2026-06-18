@@ -236,7 +236,7 @@ func (r *playerMemoryRepo) Delete(ctx context.Context, id int64) error { ... }
 **仓储实现约束（继承自旧 Store 模式）：**
 
 - **删除幂等**：已删除的数据再次删除返回 nil
-- **查询重加载**：内存中不存在时从持久存储恢复（支持 Grace Period）
+- **查询重加载**：内存中不存在时从持久存储恢复
 
 ### 2.6 领域服务
 
@@ -497,7 +497,7 @@ newExp, err := actor.InvokePlayerSync[int64](ctx, proxy, uid, func(ctx context.C
 9. **internal/svc** — 实现 `svc/` 中的接口
 10. **internal/rpc** — RPC 服务端 + 客户端（如有）
 11. **module.go** — 装配依赖注入
-12. **注册到 cmd/node/main.go** — `stack.WithModules(playerlife.Module(), xxx.Module())`
+12. **注册到 cmd/node/main.go** — `stack.WithModules(xxx.Module())`
 13. **proto 定义** — 在 `proto/<name>/` 和 `stack/route.go` 中添加路由/错误码
 
 ---
@@ -508,4 +508,3 @@ newExp, err := actor.InvokePlayerSync[int64](ctx, proxy, uid, func(ctx context.C
 - `docs/模块开发规范.md` — DDD 四层架构开发规范
 - `docs/store设计.md` — 仓储接口设计、实现约束
 - `docs/用户数据并发修改安全设计.md` — Actor 串行化模型（DDD 中保持不变）
-- `docs/用户延迟登出设计.md` — Grace Period 与 `module/playerlife`

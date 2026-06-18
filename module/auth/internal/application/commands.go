@@ -6,7 +6,6 @@ const (
 	CmdLogin        = "auth.login"
 	CmdLogout       = "auth.logout"
 	CmdRefreshToken = "auth.refresh_token"
-	CmdMarkOnline   = "auth.mark_online"
 )
 
 // RegisterCmd 注册命令。
@@ -25,14 +24,6 @@ type LoginCmd struct {
 }
 
 func (c LoginCmd) CommandName() string { return CmdLogin }
-
-type MarkOnlineCmd struct {
-	UserID int64
-	Token  string
-	GID    string
-}
-
-func (c MarkOnlineCmd) CommandName() string { return CmdMarkOnline }
 
 // LogoutCmd 登出命令。
 type LogoutCmd struct{ UserID int64 }

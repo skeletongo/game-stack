@@ -1,6 +1,6 @@
 // Package domain 定义 auth 限界上下文的领域模型。
 //
-// Account 聚合是核心：封装用户凭证、令牌、在线状态和封禁状态，
+// Account 聚合是核心：封装用户凭证和封禁状态，
 // 所有状态变更都通过行为方法执行并维护不变量。
 package domain
 
@@ -66,17 +66,3 @@ func (n Nickname) Equals(other ddd.ValueObject) bool {
 	return ok && n == o
 }
 func (n Nickname) Scalar() any { return string(n) }
-
-// Token 认证令牌值对象（32 字节随机 hex）。
-type Token string
-
-func (t Token) String() string { return string(t) }
-
-// IsEmpty 令牌是否为空（离线状态）。
-func (t Token) IsEmpty() bool { return t == "" }
-
-func (t Token) Equals(other ddd.ValueObject) bool {
-	o, ok := other.(Token)
-	return ok && t == o
-}
-func (t Token) Scalar() any { return string(t) }

@@ -2,10 +2,13 @@ package application
 
 import (
 	"context"
+	"fmt"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/dobyte/due/v2/errors"
+	rawjwt "github.com/dobyte/jwt"
 	"github.com/skeletongo/game-stack/component/jwt"
 	"github.com/skeletongo/game-stack/ddd"
 	"github.com/skeletongo/game-stack/module/auth/internal/domain"
@@ -99,18 +102,6 @@ func TestTokenLifecycle(t *testing.T) {
 		t.Fatalf("token subject = %q, want 1001", payload.Subject())
 	}
 
-	markOnline := &MarkOnlineHandler{Repo: repo, EventBus: events}
-	if _, err := markOnline.Handle(ctx, MarkOnlineCmd{UserID: loginResult.UserID, Token: loginResult.Token, GID: "gate-1"}); err != nil {
-		t.Fatalf("mark online failed: %v", err)
-	}
-	onlineAccount, err := repo.FindByToken(ctx, loginResult.Token)
-	if err != nil {
-		t.Fatalf("token index was not saved: %v", err)
-	}
-	if !onlineAccount.IsOnline() || onlineAccount.OnlineGID() != "gate-1" {
-		t.Fatalf("account online state mismatch: online=%v gid=%q", onlineAccount.IsOnline(), onlineAccount.OnlineGID())
-	}
-
 	time.Sleep(time.Millisecond)
 
 	refresh := &RefreshTokenHandler{Repo: repo, Jwt: jt}
@@ -121,13 +112,6 @@ func TestTokenLifecycle(t *testing.T) {
 	if refreshResult.Token == "" || refreshResult.Token == loginResult.Token {
 		t.Fatalf("refresh token mismatch: old=%q new=%q", loginResult.Token, refreshResult.Token)
 	}
-	refreshedAccount, err := repo.Load(ctx, loginResult.UserID)
-	if err != nil {
-		t.Fatalf("load refreshed account: %v", err)
-	}
-	if refreshedAccount.Token().String() != refreshResult.Token {
-		t.Fatalf("account token = %q, want refreshed token", refreshedAccount.Token().String())
-	}
 	_, err = refresh.Handle(ctx, RefreshTokenCmd{UserID: loginResult.UserID, Token: loginResult.Token})
 	if !errors.Is(err, stack.ErrInvalidToken) {
 		t.Fatalf("refresh old token error = %v, want %v", err, stack.ErrInvalidToken)
@@ -137,26 +121,55 @@ func TestTokenLifecycle(t *testing.T) {
 	if _, err := logout.Handle(ctx, LogoutCmd{UserID: loginResult.UserID}); err != nil {
 		t.Fatalf("logout failed: %v", err)
 	}
-	loggedOutAccount, err := repo.Load(ctx, loginResult.UserID)
-	if err != nil {
-		t.Fatalf("load logged out account: %v", err)
-	}
-	if !loggedOutAccount.Token().IsEmpty() || loggedOutAccount.IsOnline() {
-		t.Fatalf("account was not logged out: token=%q online=%v", loggedOutAccount.Token().String(), loggedOutAccount.IsOnline())
-	}
-	if _, err := repo.FindByToken(ctx, refreshResult.Token); err == nil {
-		t.Fatal("refreshed token should be removed from repository index after logout")
+	if _, err := jt.ParseToken(refreshResult.Token); !rawjwt.IsInvalidToken(err) {
+		t.Fatalf("parse logged out token error = %v, want invalid token", err)
 	}
 }
 
 func newTestJWT() *jwt.JWT {
-	return jwt.NewInstance(jwt.Config{
-		Issuer:          "auth-test",
-		AudienceKey:     "game-stack-test",
-		SecretKey:       "test-secret",
-		ValidDuration:   time.Hour,
-		RefreshDuration: 2 * time.Hour,
-	})
+	jt, err := rawjwt.NewJWT(
+		rawjwt.WithIssuer("auth-test"),
+		rawjwt.WithAudience("game-stack-test"),
+		rawjwt.WithSecretKey("test-secret"),
+		rawjwt.WithValidDuration(time.Hour),
+		rawjwt.WithRefreshDuration(2*time.Hour),
+		rawjwt.WithStore(newMemoryJWTStore()),
+	)
+	if err != nil {
+		panic(err)
+	}
+	return jt
+}
+
+type memoryJWTStore struct {
+	mu     sync.Mutex
+	values map[string]any
+}
+
+func newMemoryJWTStore() rawjwt.Store {
+	return &memoryJWTStore{values: make(map[string]any)}
+}
+
+func (s *memoryJWTStore) Get(_ context.Context, key any) (any, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.values[fmt.Sprint(key)], nil
+}
+
+func (s *memoryJWTStore) Set(_ context.Context, key any, value any, _ time.Duration) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.values[fmt.Sprint(key)] = value
+	return nil
+}
+
+func (s *memoryJWTStore) Remove(_ context.Context, keys ...any) (any, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for _, key := range keys {
+		delete(s.values, fmt.Sprint(key))
+	}
+	return nil, nil
 }
 
 func mustNewAccount(t *testing.T, id int64, username, password, nickname string) *domain.Account {

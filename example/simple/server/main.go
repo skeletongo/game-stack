@@ -7,7 +7,6 @@ import (
 
 	"github.com/skeletongo/game-stack/module/auth"
 	"github.com/skeletongo/game-stack/module/player"
-	"github.com/skeletongo/game-stack/module/playerlife"
 	"github.com/skeletongo/game-stack/stack"
 )
 
@@ -19,7 +18,6 @@ func main() {
 		stack.WithTransporter(grpc.NewTransporter()),
 		stack.WithDebug("127.0.0.1:6060"),
 		stack.WithModules(
-			playerlife.Module(),
 			auth.Module(),
 			player.Module(),
 		),

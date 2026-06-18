@@ -163,7 +163,7 @@ func (r *MemoryRepo) Delete(_ context.Context, id int64) error {
 
 ### 2. 缓存管理与重新加载
 
-Repository 对外不区分内存层或持久层。缓存、TTL、LRU、回源、内存释放都由具体仓储实现自己决定，业务模块和 `module/playerlife` 不感知这些细节。
+Repository 对外不区分内存层或持久层。缓存、TTL、LRU、回源、内存释放都由具体仓储实现自己决定，业务模块不感知这些细节。
 
 查询时若内存中不存在，应从持久化存储重新加载：
 
@@ -179,7 +179,7 @@ func (r *Repo) Load(ctx context.Context, id int64) (*Player, error) {
 }
 ```
 
-详见 `docs/用户延迟登出设计.md`。
+普通断线不应触发 Repository 删除或节点解绑；需要释放内存时，由仓储自己的缓存策略或显式玩家迁移流程处理。
 
 ### 3. 生产环境替换
 
@@ -200,4 +200,3 @@ func NewRedisRepo(rdb *redis.Client) domain.PlayerRepository {
 
 - `docs/DDD设计文档.md` — DDD 分层架构和开发规范
 - `docs/用户数据并发修改安全设计.md` — Actor 串行化模型
-- `docs/用户延迟登出设计.md` — Grace Period 与 `module/playerlife`

@@ -16,7 +16,6 @@ type MemoryRepo struct {
 	mu       sync.RWMutex
 	accounts map[int64]*domain.Account
 	byName   map[string]int64 // username → userID
-	byToken  map[string]int64 // token → userID
 }
 
 // NewMemoryRepo 创建内存仓储。
@@ -24,7 +23,6 @@ func NewMemoryRepo() *MemoryRepo {
 	return &MemoryRepo{
 		accounts: make(map[int64]*domain.Account),
 		byName:   make(map[string]int64),
-		byToken:  make(map[string]int64),
 	}
 }
 
@@ -43,16 +41,8 @@ func (r *MemoryRepo) Load(_ context.Context, id int64) (*domain.Account, error) 
 func (r *MemoryRepo) Save(_ context.Context, a *domain.Account) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	for token, id := range r.byToken {
-		if id == a.ID() {
-			delete(r.byToken, token)
-		}
-	}
 	r.accounts[a.ID()] = a
 	r.byName[a.Username().String()] = a.ID()
-	if !a.Token().IsEmpty() {
-		r.byToken[a.Token().String()] = a.ID()
-	}
 	return nil
 }
 
@@ -65,9 +55,6 @@ func (r *MemoryRepo) Delete(_ context.Context, id int64) error {
 		return nil
 	}
 	delete(r.byName, a.Username().String())
-	if !a.Token().IsEmpty() {
-		delete(r.byToken, a.Token().String())
-	}
 	delete(r.accounts, id)
 	return nil
 }
@@ -79,17 +66,6 @@ func (r *MemoryRepo) FindByUsername(_ context.Context, username string) (*domain
 	id, ok := r.byName[username]
 	if !ok {
 		return nil, fmt.Errorf("account %s not found", username)
-	}
-	return r.accounts[id], nil
-}
-
-// FindByToken 按令牌查找账户。
-func (r *MemoryRepo) FindByToken(_ context.Context, token string) (*domain.Account, error) {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-	id, ok := r.byToken[token]
-	if !ok {
-		return nil, fmt.Errorf("token not found")
 	}
 	return r.accounts[id], nil
 }

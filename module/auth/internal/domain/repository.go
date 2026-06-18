@@ -13,7 +13,4 @@ type AccountRepository interface {
 
 	// FindByUsername 按用户名查找账户。
 	FindByUsername(ctx context.Context, username string) (*Account, error)
-
-	// FindByToken 按令牌查找账户。
-	FindByToken(ctx context.Context, token string) (*Account, error)
 }

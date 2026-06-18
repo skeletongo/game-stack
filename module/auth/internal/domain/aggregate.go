@@ -6,13 +6,11 @@ import (
 	"time"
 
 	"github.com/skeletongo/game-stack/ddd"
-	"github.com/skeletongo/game-stack/stack"
 )
 
 // Account 是用户账户聚合根。
 //
 // 聚合不变量：
-//   - Token 非空 == 在线（OnlineGID 非空）
 //   - 被封禁的账户不允许登录
 //   - 密码哈希永不为空
 type Account struct {
@@ -22,8 +20,6 @@ type Account struct {
 	passwordHash PasswordHash
 	nickname     Nickname
 	bannedAt     int64 // 0 表示未封禁，>0 为封禁时间戳
-	token        Token
-	onlineGID    string // 非空表示在线，值为 Gate 节点 ID
 	createdAt    int64
 }
 
@@ -51,7 +47,7 @@ func NewAccount(id int64, playerID int64, username, password, nickname string) (
 }
 
 // ReconstructAccount 从持久化数据重建账户（仓储专用，跳过校验）。
-func ReconstructAccount(id int64, playerID int64, username, passwordHash, nickname string, token string, onlineGID string, bannedAt, createdAt int64) *Account {
+func ReconstructAccount(id int64, playerID int64, username, passwordHash, nickname string, bannedAt, createdAt int64) *Account {
 	return &Account{
 		id:           UserID(id),
 		playerID:     playerID,
@@ -59,8 +55,6 @@ func ReconstructAccount(id int64, playerID int64, username, passwordHash, nickna
 		passwordHash: PasswordHash(passwordHash),
 		nickname:     Nickname(nickname),
 		bannedAt:     bannedAt,
-		token:        Token(token),
-		onlineGID:    onlineGID,
 		createdAt:    createdAt,
 	}
 }
@@ -73,16 +67,11 @@ func (a *Account) ID() int64 { return a.id.Int64() }
 func (a *Account) Username() Username { return a.username }
 func (a *Account) PlayerID() int64    { return a.playerID }
 func (a *Account) Nickname() Nickname { return a.nickname }
-func (a *Account) Token() Token       { return a.token }
-func (a *Account) OnlineGID() string  { return a.onlineGID }
 func (a *Account) BannedAt() int64    { return a.bannedAt }
 func (a *Account) CreatedAt() int64   { return a.createdAt }
 
 // IsBanned 账户是否被封禁。
 func (a *Account) IsBanned() bool { return a.bannedAt > 0 }
-
-// IsOnline 账户是否在线（有活跃的 Gate 连接）。
-func (a *Account) IsOnline() bool { return a.onlineGID != "" }
 
 // 行为方法
 
@@ -91,48 +80,14 @@ func (a *Account) VerifyPassword(password string) bool {
 	return a.passwordHash == hashPassword(password)
 }
 
-// Login 登录：设置令牌和在线状态。
-// 前置条件：账户未被封禁。
-func (a *Account) Login(token Token, gid string) error {
-	if a.IsBanned() {
-		return stack.ErrAccountBanned
-	}
-	a.token = token
-	a.onlineGID = gid
-	return nil
-}
-
-// Logout 登出：清除令牌和在线状态。
-func (a *Account) Logout() {
-	a.token = ""
-	a.onlineGID = ""
-}
-
-// RefreshToken 刷新令牌。
-func (a *Account) RefreshToken(newToken Token) {
-	a.token = newToken
-}
-
 // Ban 封禁账户，同时强制登出。
 func (a *Account) Ban() {
 	a.bannedAt = time.Now().Unix()
-	a.token = ""
-	a.onlineGID = ""
 }
 
 // Unban 解封账户。
 func (a *Account) Unban() {
 	a.bannedAt = 0
-}
-
-// SetOnline 设置在线 Gate 节点（Connect 事件触发）。
-func (a *Account) SetOnline(gid string) {
-	a.onlineGID = gid
-}
-
-// SetOffline 设置离线状态（Disconnect 事件触发）。
-func (a *Account) SetOffline() {
-	a.onlineGID = ""
 }
 
 // hashPassword 对密码做 SHA256 哈希。
