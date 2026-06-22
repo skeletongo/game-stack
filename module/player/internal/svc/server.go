@@ -44,10 +44,7 @@ func (s *server) GetPlayer(ctx context.Context, id int64) (*svc.Player, error) {
 
 // CreatePlayer 创建玩家档案（在玩家 Actor 中同步执行，注册账号时调用）。
 func (s *server) CreatePlayer(ctx context.Context, id int64, nickname string) error {
-	_, err := actor.InvokePlayerSync[*ddd.NoResult](ctx, s.proxy, id, func(ctx context.Context) (*ddd.NoResult, error) {
-		_, err := s.cmdBus.Dispatch(ctx, application.CreatePlayerCmd{PlayerID: id, Nickname: nickname})
-		return &ddd.NoResult{}, err
-	})
+	_, err := s.cmdBus.Dispatch(ctx, application.CreatePlayerCmd{PlayerID: id, Nickname: nickname})
 	return err
 }
 
