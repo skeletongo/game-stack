@@ -50,10 +50,7 @@ func (s *server) CreatePlayer(ctx context.Context, id int64, nickname string) er
 
 // DeletePlayer 删除玩家档案（在玩家 Actor 中同步执行，注册补偿或内部清理时调用）。
 func (s *server) DeletePlayer(ctx context.Context, id int64) error {
-	_, err := actor.InvokePlayerSync[*ddd.NoResult](ctx, s.proxy, id, func(ctx context.Context) (*ddd.NoResult, error) {
-		_, err := s.cmdBus.Dispatch(ctx, application.DeletePlayerCmd{PlayerID: id})
-		return &ddd.NoResult{}, err
-	})
+	_, err := s.cmdBus.Dispatch(ctx, application.DeletePlayerCmd{PlayerID: id})
 	return err
 }
 
