@@ -17,7 +17,6 @@ import (
 	"github.com/dobyte/due/v2/session"
 
 	"github.com/skeletongo/game-stack/ddd"
-	"github.com/skeletongo/game-stack/module/actor"
 	"github.com/skeletongo/game-stack/module/auth/internal/application"
 	"github.com/skeletongo/game-stack/proto/auth"
 	"github.com/skeletongo/game-stack/stack"
@@ -71,17 +70,9 @@ func (h *Handlers) HandleRegister(ctx node.Context) {
 	stack.ProtoResponse(ctx, &auth.RegisterResponse{Code: stack.ErrInternalError.Code, Message: stack.ErrInternalError.Message})
 }
 
-func (h *Handlers) spawnPlayer(uid int64) error {
-	if _, err := actor.SpawnPlayer(h.proxy, uid); err != nil {
-		log.Errorf("[auth] spawn player actor failed: uid=%d err=%v", uid, err)
-		return err
-	}
-	return nil
-}
-
 // HandleLogin 处理登录请求（无状态路由）。
 //
-// 流程：验证凭证 → 网关绑定 → 检查重连状态 → 节点绑定/Actor创建 → 响应。
+// 流程：验证凭证 → 网关绑定 → 检查重连状态 → 必要时节点绑定 → 响应。
 func (h *Handlers) HandleLogin(ctx node.Context) {
 	log.Infof("[auth] HandleLogin called: uid=%d cid=%d", ctx.UID(), ctx.CID())
 
@@ -129,18 +120,9 @@ func (h *Handlers) HandleLogin(ctx node.Context) {
 	}
 
 	if boundNid == "" || !h.proxy.HasNode(boundNid) {
-		// 首次登录：绑定当前节点 + 创建 Actor
+		// 首次登录或原节点失效：绑定到当前节点。玩家 Actor 由有状态路由按需创建。
 		if err := ctx.BindNode(result.UserID); err != nil {
 			log.Errorf("[auth] HandleLogin BindNode failed: %v", err)
-			stack.ProtoResponse(ctx, &auth.LoginResponse{Code: stack.ErrInternalError.Code, Message: stack.ErrInternalError.Message})
-			return
-		}
-		if err := h.spawnPlayer(result.UserID); err != nil {
-			stack.ProtoResponse(ctx, &auth.LoginResponse{Code: stack.ErrInternalError.Code, Message: stack.ErrInternalError.Message})
-			return
-		}
-	} else if boundNid == h.proxy.GetID() {
-		if err := h.spawnPlayer(result.UserID); err != nil {
 			stack.ProtoResponse(ctx, &auth.LoginResponse{Code: stack.ErrInternalError.Code, Message: stack.ErrInternalError.Message})
 			return
 		}
