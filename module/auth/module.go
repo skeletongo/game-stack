@@ -13,9 +13,9 @@ import (
 
 	"github.com/dobyte/due/v2/cluster/node"
 	"github.com/dobyte/due/v2/log"
-	"github.com/skeletongo/game-stack/component/jwt"
 
 	"github.com/skeletongo/game-stack/ddd"
+	"github.com/skeletongo/game-stack/internal/component/jwt"
 	"github.com/skeletongo/game-stack/module/auth/internal/application"
 	"github.com/skeletongo/game-stack/module/auth/internal/domain"
 	interfaces "github.com/skeletongo/game-stack/module/auth/internal/interface"

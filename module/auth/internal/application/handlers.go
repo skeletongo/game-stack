@@ -8,8 +8,8 @@ import (
 	"github.com/dobyte/due/v2/log"
 	dobytejwt "github.com/dobyte/jwt"
 
-	"github.com/skeletongo/game-stack/component/jwt"
 	"github.com/skeletongo/game-stack/ddd"
+	"github.com/skeletongo/game-stack/internal/component/jwt"
 	"github.com/skeletongo/game-stack/module/auth/internal/domain"
 	"github.com/skeletongo/game-stack/stack"
 )

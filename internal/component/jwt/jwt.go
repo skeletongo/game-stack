@@ -8,7 +8,7 @@ import (
 	"github.com/dobyte/due/v2/log"
 	"github.com/dobyte/jwt"
 
-	"github.com/skeletongo/game-stack/component/redisx"
+	"github.com/skeletongo/game-stack/internal/component/redisx"
 )
 
 var (
