@@ -346,7 +346,7 @@ _, err := cmdBus.Dispatch(ctx, cmd)
 
 ### 3.2 目录结构
 
-四层代码放在 `internal/` 子目录中（Go 编译器强制边界），对外接口放在 `svc/`。以 player 为例：
+四层代码放在 `internal/` 子目录中（Go 编译器强制边界），对外接口放在 `svc/`，RPC 适配放在顶层 `rpc/`。以 player 为例：
 
 ```
 module/player/
@@ -366,16 +366,19 @@ module/player/
 │   │   └── repo_redis.go      # Redis 仓储实现（可选）
 │   ├── interface/             # 接口层
 │   │   └── routes.go          # 路由处理器（薄层，解析 proto → 构建 Command → 投递）
-│   ├── rpc/                   # RPC 适配（如有）
-│   │   └── server.go          # gRPC 服务端 + 客户端
-│   └── svc/                   # 跨模块 Service 实现
+├── player.proto               # RPC proto 定义（如有）
+├── svc/                       # 对外接口和跨模块 Service
+│   ├── interface.go           # IPlayer + Player DTO
+│   └── server/                # 跨模块 Service 实现
 │       └── server.go          # 实现 svc.IPlayer 接口
-├── svc/                       # 对外接口定义
-│   └── interface.go           # IPlayer + Player DTO
-├── grpc/                      # proto 生成代码（如有）
-│   ├── player.proto
-│   ├── player.pb.go
-│   └── player_grpc.pb.go
+├── rpc/                       # RPC 适配（如有）
+│   ├── client/                # RPC 客户端
+│   │   └── client.go
+│   ├── server/                # RPC 服务端
+│   │   └── server.go
+│   └── grpc/                  # proto 生成代码
+│       ├── player.pb.go
+│       └── player_grpc.pb.go
 ├── module.go                  # Module 构造函数，装配依赖注入
 └── option.go                  # 函数式选项
 ```
@@ -466,8 +469,9 @@ newExp, err := actor.InvokePlayerSync[int64](ctx, proxy, uid, func(ctx context.C
 | Infrastructure | `internal/infrastructure/repo_memory.go` | 内存仓储实现 |
 | Infrastructure | `internal/infrastructure/repo_redis.go` | Redis 仓储实现（可选） |
 | Interface | `internal/interface/routes.go` | 路由处理器（薄层） |
-| RPC | `internal/rpc/server.go` | RPC 服务端 + 客户端 |
-| Service | `internal/svc/server.go` | 跨模块 Service 实现（Actor 串行化） |
+| RPC Client | `rpc/client/client.go` | RPC 客户端 |
+| RPC Server | `rpc/server/server.go` | RPC 服务端 |
+| Service | `svc/server/server.go` | 跨模块 Service 实现（Actor 串行化） |
 | Public API | `svc/interface.go` | 对外接口定义 + DTO |
 | Root | `module.go` | 模块构造函数 + Init（依赖注入装配） |
 
@@ -494,8 +498,8 @@ newExp, err := actor.InvokePlayerSync[int64](ctx, proxy, uid, func(ctx context.C
 6. **infrastructure 层** — `repo_memory.go`（至少提供内存实现）
 7. **application 层** — `commands.go` → `handlers.go` → `dto.go`
 8. **interface 层** — `routes.go`（路由注册 + 薄 handler）
-9. **internal/svc** — 实现 `svc/` 中的接口
-10. **internal/rpc** — RPC 服务端 + 客户端（如有）
+9. **svc/server** — 实现 `svc/` 中的接口
+10. **rpc/client + rpc/server** — RPC 客户端和服务端（如有）
 11. **module.go** — 装配依赖注入
 12. **注册到 cmd/node/main.go** — `stack.WithModules(xxx.Module())`
 13. **proto 定义** — 在 `proto/<name>/` 和 `stack/route.go` 中添加路由/错误码

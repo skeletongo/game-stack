@@ -26,6 +26,7 @@ const (
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type PlayerClient interface {
+	// GetPlayer 查询玩家信息。
 	GetPlayer(ctx context.Context, in *GetPlayerReq, opts ...grpc.CallOption) (*GetPlayerResp, error)
 }
 
@@ -51,6 +52,7 @@ func (c *playerClient) GetPlayer(ctx context.Context, in *GetPlayerReq, opts ...
 // All implementations must embed UnimplementedPlayerServer
 // for forward compatibility.
 type PlayerServer interface {
+	// GetPlayer 查询玩家信息。
 	GetPlayer(context.Context, *GetPlayerReq) (*GetPlayerResp, error)
 	mustEmbedUnimplementedPlayerServer()
 }

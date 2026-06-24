@@ -88,50 +88,59 @@ func (h *Handlers) HandleLogin(ctx node.Context) {
 	}
 
 	result, err := ddd.Dispatch[*application.LoginResult](ctx.Context(), h.cmdBus,
-		application.LoginCmd{Username: req.Username, Password: req.Password})
+		application.LoginCmd{Username: req.Username, Password: req.Password, GameID: req.GameId})
 	if err != nil {
 		log.Warnf("[auth] HandleLogin failed: %v", err)
 		stack.ProtoResponse(ctx, &auth.LoginResponse{Code: stack.ErrCode(err), Message: err.Error()})
 		return
 	}
 
-	// 顶号：若用户已有活跃连接，推送踢出消息并断开旧连接
-	if gid, err := h.proxy.LocateGate(ctx.Context(), result.UserID); err == nil && gid != "" {
-		log.Infof("[auth] kicking old session: uid=%d gid=%s", result.UserID, gid)
-		_ = h.proxy.Push(ctx.Context(), &cluster.PushArgs{
-			Kind:       session.User,
-			Target:     result.UserID,
-			Message:    &cluster.Message{Route: stack.RouteAuthKick, Data: auth.KickResponse{Reason: auth.KickReason_LoginElseWhere}},
-			Disconnect: true,
-		})
-	}
-
-	if err := ctx.BindGate(result.UserID); err != nil {
-		log.Errorf("[auth] HandleLogin BindGate failed: %v", err)
+	if err := h.bindLoginSession(ctx, result.UserID); err != nil {
 		stack.ProtoResponse(ctx, &auth.LoginResponse{Code: stack.ErrInternalError.Code, Message: stack.ErrInternalError.Message})
 		return
-	}
-
-	boundNid, err := h.proxy.LocateNode(ctx.Context(), result.UserID, h.proxy.GetName())
-	if err != nil && !errors.Is(err, errors.ErrNotFoundUserLocation) {
-		log.Errorf("[auth] HandleLogin LocateNode failed: %v", err)
-		stack.ProtoResponse(ctx, &auth.LoginResponse{Code: stack.ErrInternalError.Code, Message: stack.ErrInternalError.Message})
-		return
-	}
-
-	if boundNid == "" || !h.proxy.HasNode(boundNid) {
-		// 首次登录或原节点失效：绑定到当前节点。玩家 Actor 由有状态路由按需创建。
-		if err := ctx.BindNode(result.UserID); err != nil {
-			log.Errorf("[auth] HandleLogin BindNode failed: %v", err)
-			stack.ProtoResponse(ctx, &auth.LoginResponse{Code: stack.ErrInternalError.Code, Message: stack.ErrInternalError.Message})
-			return
-		}
 	}
 
 	// 重连且绑定在其他节点：不改节点归属，后续 StatefulRoute 仍投递到绑定节点。
 	stack.ProtoResponse(ctx, &auth.LoginResponse{
 		Code:      stack.CodeOK,
 		Token:     result.Token,
+		PlayerId:  result.PlayerID,
+		ExpiresAt: result.ExpiresAt,
+		UnixNano:  time.Now().UnixNano(),
+	})
+}
+
+// HandleTokenLogin 处理 token 登录长连接请求（无状态路由）。
+//
+// 流程：验证 token → 网关绑定 → 检查重连状态 → 必要时节点绑定 → 响应。
+func (h *Handlers) HandleTokenLogin(ctx node.Context) {
+	log.Infof("[auth] HandleTokenLogin called: uid=%d cid=%d", ctx.UID(), ctx.CID())
+
+	req := &auth.TokenLoginRequest{}
+	if err := ctx.Parse(req); err != nil {
+		log.Errorf("[auth] HandleTokenLogin parse failed: %v", err)
+		stack.ProtoResponse(ctx, &auth.TokenLoginResponse{Code: stack.ErrInvalidParam.Code, Message: err.Error()})
+		return
+	}
+	if req.Token == "" {
+		stack.ProtoResponse(ctx, &auth.TokenLoginResponse{Code: stack.ErrInvalidParam.Code, Message: stack.ErrInvalidParam.Message})
+		return
+	}
+
+	result, err := ddd.Dispatch[*application.TokenLoginResult](ctx.Context(), h.cmdBus, application.TokenLoginCmd{Token: req.Token})
+	if err != nil {
+		log.Warnf("[auth] HandleTokenLogin failed: %v", err)
+		stack.ProtoResponse(ctx, &auth.TokenLoginResponse{Code: stack.ErrCode(err), Message: err.Error()})
+		return
+	}
+
+	if err := h.bindLoginSession(ctx, result.UserID); err != nil {
+		stack.ProtoResponse(ctx, &auth.TokenLoginResponse{Code: stack.ErrInternalError.Code, Message: stack.ErrInternalError.Message})
+		return
+	}
+
+	stack.ProtoResponse(ctx, &auth.TokenLoginResponse{
+		Code:      stack.CodeOK,
 		PlayerId:  result.PlayerID,
 		ExpiresAt: result.ExpiresAt,
 		UnixNano:  time.Now().UnixNano(),
@@ -159,4 +168,37 @@ func (h *Handlers) HandleRefresh(ctx node.Context) {
 		return
 	}
 	stack.ProtoResponse(ctx, &auth.TokenRefreshResponse{Code: stack.CodeOK, Token: result.Token, ExpiresAt: result.ExpiresAt})
+}
+
+func (h *Handlers) bindLoginSession(ctx node.Context, uid int64) error {
+	// 顶号：若用户已有活跃连接，推送踢出消息并断开旧连接
+	if gid, err := h.proxy.LocateGate(ctx.Context(), uid); err == nil && gid != "" {
+		log.Infof("[auth] kicking old session: uid=%d gid=%s", uid, gid)
+		_ = h.proxy.Push(ctx.Context(), &cluster.PushArgs{
+			Kind:       session.User,
+			Target:     uid,
+			Message:    &cluster.Message{Route: stack.RouteAuthKick, Data: auth.KickResponse{Reason: auth.KickReason_LoginElseWhere}},
+			Disconnect: true,
+		})
+	}
+
+	if err := ctx.BindGate(uid); err != nil {
+		log.Errorf("[auth] BindGate failed: uid=%d err=%v", uid, err)
+		return err
+	}
+
+	boundNid, err := h.proxy.LocateNode(ctx.Context(), uid, h.proxy.GetName())
+	if err != nil && !errors.Is(err, errors.ErrNotFoundUserLocation) {
+		log.Errorf("[auth] LocateNode failed: uid=%d err=%v", uid, err)
+		return err
+	}
+
+	if boundNid == "" || !h.proxy.HasNode(boundNid) {
+		// 首次登录或原节点失效：绑定到当前节点。玩家 Actor 由有状态路由按需创建。
+		if err := ctx.BindNode(uid); err != nil {
+			log.Errorf("[auth] BindNode failed: uid=%d err=%v", uid, err)
+			return err
+		}
+	}
+	return nil
 }

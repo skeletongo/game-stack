@@ -16,8 +16,8 @@ import (
 	"github.com/skeletongo/game-stack/module/player/internal/application"
 	"github.com/skeletongo/game-stack/module/player/internal/domain"
 	interfaces "github.com/skeletongo/game-stack/module/player/internal/interface"
-	rpcserver "github.com/skeletongo/game-stack/module/player/internal/rpc"
-	svcserver "github.com/skeletongo/game-stack/module/player/internal/svc"
+	rpcserver "github.com/skeletongo/game-stack/module/player/rpc/server"
+	svcserver "github.com/skeletongo/game-stack/module/player/svc/server"
 	"github.com/skeletongo/game-stack/stack"
 	"github.com/skeletongo/game-stack/stack/debug"
 )

@@ -25,6 +25,7 @@ const (
 	RouteAuthLogout       int32 = int32(auth.AuthRoute_LOGOUT)
 	RouteAuthTokenRefresh int32 = int32(auth.AuthRoute_TOKEN_REFRESH)
 	RouteAuthKick         int32 = int32(auth.AuthRoute_KICK)
+	RouteAuthTokenLogin   int32 = int32(auth.AuthRoute_TOKEN_LOGIN)
 
 	// Player 模块 (2000-2999)
 	RoutePlayerGetInfo   int32 = int32(player.PlayerRoute_GET_INFO)

@@ -1,4 +1,4 @@
-package svc
+package server
 
 import (
 	"context"
@@ -17,9 +17,9 @@ var _ svc.IPlayer = (*server)(nil)
 // server 是 player 模块对外提供的接口
 // 其他模块通过 stack.GetService("player") 获取，类型断言为 svc.IPlayer
 type server struct {
-	repo   domain.PlayerRepository
-	cmdBus *ddd.CommandBus
-	proxy  *node.Proxy
+	repo   domain.PlayerRepository // 玩家仓储
+	cmdBus *ddd.CommandBus         // 命令总线
+	proxy  *node.Proxy             // 节点代理
 }
 
 // New 创建 player 模块的跨模块 Service 实例。
@@ -89,6 +89,7 @@ func (s *server) DeductDiamond(ctx context.Context, id int64, diamond int32) (in
 	})
 }
 
+// playerToAPI 将领域玩家对象转换为对外 DTO。
 func playerToAPI(p *domain.Player) *svc.Player {
 	return &svc.Player{
 		ID:        p.ID(),

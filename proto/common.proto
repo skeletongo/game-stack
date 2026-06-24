@@ -6,28 +6,28 @@ option go_package = "github.com/skeletongo/game-stack/proto/common";
 
 // SysError 系统级错误码（0-999），复用 HTTP 语义。
 enum SysError {
-    SYS_ERROR_UNSPECIFIED = 0;
-    OK                    = 1;
-    INVALID_PARAM         = 400;
-    UNAUTHORIZED          = 401;
-    FORBIDDEN             = 403;
-    NOT_FOUND             = 404;
-    TIMEOUT               = 408;
-    DUPLICATE_REQUEST     = 429;
-    INTERNAL_ERROR        = 500;
-    SERVER_BUSY           = 503;
+    SYS_ERROR_UNSPECIFIED = 0;   // proto3 要求首个值为 0
+    OK                    = 1;   // 成功
+    INVALID_PARAM         = 400; // 参数错误
+    UNAUTHORIZED          = 401; // 未授权
+    FORBIDDEN             = 403; // 禁止访问
+    NOT_FOUND             = 404; // 未找到
+    TIMEOUT               = 408; // 请求超时
+    DUPLICATE_REQUEST     = 429; // 重复请求
+    INTERNAL_ERROR        = 500; // 内部错误
+    SERVER_BUSY           = 503; // 服务器繁忙
 }
 
 // Pagination 通用分页参数。
 message Pagination {
-    int32 page      = 1;
-    int32 page_size = 2;
+    int32 page      = 1; // 页码
+    int32 page_size = 2; // 每页数量
 }
 
 // PageInfo 通用分页响应信息。
 message PageInfo {
-    int32 page        = 1;
-    int32 page_size   = 2;
-    int64 total       = 3;
-    int64 total_pages = 4;
+    int32 page        = 1; // 页码
+    int32 page_size   = 2; // 每页数量
+    int64 total       = 3; // 总数量
+    int64 total_pages = 4; // 总页数
 }

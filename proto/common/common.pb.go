@@ -25,16 +25,16 @@ const (
 type SysError int32
 
 const (
-	SysError_SYS_ERROR_UNSPECIFIED SysError = 0
-	SysError_OK                    SysError = 1
-	SysError_INVALID_PARAM         SysError = 400
-	SysError_UNAUTHORIZED          SysError = 401
-	SysError_FORBIDDEN             SysError = 403
-	SysError_NOT_FOUND             SysError = 404
-	SysError_TIMEOUT               SysError = 408
-	SysError_DUPLICATE_REQUEST     SysError = 429
-	SysError_INTERNAL_ERROR        SysError = 500
-	SysError_SERVER_BUSY           SysError = 503
+	SysError_SYS_ERROR_UNSPECIFIED SysError = 0   // proto3 要求首个值为 0
+	SysError_OK                    SysError = 1   // 成功
+	SysError_INVALID_PARAM         SysError = 400 // 参数错误
+	SysError_UNAUTHORIZED          SysError = 401 // 未授权
+	SysError_FORBIDDEN             SysError = 403 // 禁止访问
+	SysError_NOT_FOUND             SysError = 404 // 未找到
+	SysError_TIMEOUT               SysError = 408 // 请求超时
+	SysError_DUPLICATE_REQUEST     SysError = 429 // 重复请求
+	SysError_INTERNAL_ERROR        SysError = 500 // 内部错误
+	SysError_SERVER_BUSY           SysError = 503 // 服务器繁忙
 )
 
 // Enum value maps for SysError.
@@ -95,8 +95,8 @@ func (SysError) EnumDescriptor() ([]byte, []int) {
 // Pagination 通用分页参数。
 type Pagination struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Page          int32                  `protobuf:"varint,1,opt,name=page,proto3" json:"page,omitempty"`
-	PageSize      int32                  `protobuf:"varint,2,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`
+	Page          int32                  `protobuf:"varint,1,opt,name=page,proto3" json:"page,omitempty"`                         // 页码
+	PageSize      int32                  `protobuf:"varint,2,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"` // 每页数量
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -148,10 +148,10 @@ func (x *Pagination) GetPageSize() int32 {
 // PageInfo 通用分页响应信息。
 type PageInfo struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Page          int32                  `protobuf:"varint,1,opt,name=page,proto3" json:"page,omitempty"`
-	PageSize      int32                  `protobuf:"varint,2,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`
-	Total         int64                  `protobuf:"varint,3,opt,name=total,proto3" json:"total,omitempty"`
-	TotalPages    int64                  `protobuf:"varint,4,opt,name=total_pages,json=totalPages,proto3" json:"total_pages,omitempty"`
+	Page          int32                  `protobuf:"varint,1,opt,name=page,proto3" json:"page,omitempty"`                               // 页码
+	PageSize      int32                  `protobuf:"varint,2,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`       // 每页数量
+	Total         int64                  `protobuf:"varint,3,opt,name=total,proto3" json:"total,omitempty"`                             // 总数量
+	TotalPages    int64                  `protobuf:"varint,4,opt,name=total_pages,json=totalPages,proto3" json:"total_pages,omitempty"` // 总页数
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }

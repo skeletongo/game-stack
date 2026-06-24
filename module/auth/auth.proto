@@ -1,0 +1,63 @@
+syntax = "proto3";
+
+package auth;
+
+option go_package = "github.com/skeletongo/game-stack/module/auth/rpc/grpc";
+
+service Auth {
+    // Register 注册账号。
+    rpc Register(RegisterReq) returns (RegisterResp);
+    // Login 使用账号密码登录短连接并签发 token。
+    rpc Login(LoginReq) returns (LoginResp);
+    // Logout 登出账号并销毁 token。
+    rpc Logout(LogoutReq) returns (LogoutResp);
+    // RefreshToken 刷新登录 token。
+    rpc RefreshToken(RefreshTokenReq) returns (RefreshTokenResp);
+}
+
+message RegisterReq {
+    string username = 1; // 账号名
+    string password = 2; // 密码
+    string nickname = 3; // 昵称
+}
+
+message RegisterResp {
+    int32 code = 1; // 错误码，0 表示成功
+    string message = 2; // 错误描述
+}
+
+message LoginReq {
+    string username = 1; // 账号名
+    string password = 2; // 密码
+    int64 game_id = 3; // 游戏id
+}
+
+message LoginResp {
+    int32 code = 1; // 错误码，0 表示成功
+    string message = 2; // 错误描述
+    string token = 3; // 登录令牌
+    int64 expires_at = 4; // token过期时间
+    int64 player_id = 5; // 玩家id
+    int64 unix_nano = 6; // 服务器时间戳，纳秒
+}
+
+message LogoutReq {
+    int64 user_id = 1; // 用户id
+}
+
+message LogoutResp {
+    int32 code = 1; // 错误码，0 表示成功
+    string message = 2; // 错误描述
+}
+
+message RefreshTokenReq {
+    int64 user_id = 1; // 用户id
+    string token = 2; // 原登录令牌
+}
+
+message RefreshTokenResp {
+    int32 code = 1; // 错误码，0 表示成功
+    string message = 2; // 错误描述
+    string token = 3; // 新登录令牌
+    int64 expires_at = 4; // token过期时间
+}

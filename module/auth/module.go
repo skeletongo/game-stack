@@ -19,7 +19,8 @@ import (
 	"github.com/skeletongo/game-stack/module/auth/internal/application"
 	"github.com/skeletongo/game-stack/module/auth/internal/domain"
 	interfaces "github.com/skeletongo/game-stack/module/auth/internal/interface"
-	svcserver "github.com/skeletongo/game-stack/module/auth/internal/svc"
+	rpcserver "github.com/skeletongo/game-stack/module/auth/rpc/server"
+	svcserver "github.com/skeletongo/game-stack/module/auth/svc/server"
 	playersvc "github.com/skeletongo/game-stack/module/player/svc"
 	"github.com/skeletongo/game-stack/stack"
 	"github.com/skeletongo/game-stack/stack/debug"
@@ -60,6 +61,7 @@ func (m *authModule) Init(proxy *node.Proxy) error {
 	// ---- 应用层：命令处理器 ----
 	ddd.Register(cmdBus, application.CmdRegister, &application.RegisterHandler{Repo: repo, EventBus: eventBus, Players: playerServiceRef{}})
 	ddd.Register(cmdBus, application.CmdLogin, &application.LoginHandler{Repo: repo, EventBus: eventBus, Jwt: jt})
+	ddd.Register(cmdBus, application.CmdTokenLogin, &application.TokenLoginHandler{Repo: repo, EventBus: eventBus, Jwt: jt})
 	ddd.Register(cmdBus, application.CmdLogout, &application.LogoutHandler{Repo: repo, EventBus: eventBus, Jwt: jt})
 	ddd.Register(cmdBus, application.CmdRefreshToken, &application.RefreshTokenHandler{Repo: repo, Jwt: jt})
 
@@ -69,10 +71,14 @@ func (m *authModule) Init(proxy *node.Proxy) error {
 	// 无状态路由（无需认证）
 	proxy.AddRouteHandler(stack.RouteAuthLogin, routes.HandleLogin)
 	proxy.AddRouteHandler(stack.RouteAuthRegister, routes.HandleRegister)
+	proxy.AddRouteHandler(stack.RouteAuthTokenLogin, routes.HandleTokenLogin)
 
 	// 无状态 + 认证路由
 	proxy.AddRouteHandler(stack.RouteAuthLogout, routes.HandleLogout, node.AuthorizedRoute)
 	proxy.AddRouteHandler(stack.RouteAuthTokenRefresh, routes.HandleRefresh, node.AuthorizedRoute)
+
+	// 注册 RPC 服务（供 frontend 等外部入口调用）
+	rpcserver.Register(name, proxy, cmdBus)
 
 	// 注册跨模块 Service（供其他模块通过 stack.GetService("auth") 获取）
 	stack.RegisterService(name, svcserver.New(repo, jt, proxy))

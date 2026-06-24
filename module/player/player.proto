@@ -2,23 +2,24 @@ syntax = "proto3";
 
 package player;
 
-option go_package = "github.com/skeletongo/game-stack/module/player/grpc";
+option go_package = "github.com/skeletongo/game-stack/module/player/rpc/grpc";
 
 service Player {
+    // GetPlayer 查询玩家信息。
     rpc GetPlayer(GetPlayerReq) returns (GetPlayerResp);
 }
 
 message GetPlayerReq {
-    int64 uid = 1;
+    int64 uid = 1; // 用户id
 }
 
 message GetPlayerResp {
-    int64  uid         = 1;
-    string name        = 2;
-    int32  level       = 3;
-    int64  exp         = 4;
-    int32  gold        = 5;
-    int32  diamond     = 6;
-    string avatar      = 7;
-    int64  created_at  = 8;
+    int64  uid         = 1; // 用户id
+    string name        = 2; // 玩家名
+    int32  level       = 3; // 等级
+    int64  exp         = 4; // 经验值
+    int32  gold        = 5; // 金币
+    int32  diamond     = 6; // 钻石
+    string avatar      = 7; // 头像
+    int64  created_at  = 8; // 创建时间
 }

@@ -1,0 +1,77 @@
+pid: ./run/frontend.pid
+mode: debug
+timezone: Local
+
+cluster:
+  node:
+    id:
+    name: frontend
+    codec: proto
+    timeout: 3s
+
+config:
+  file:
+    path: ./data/
+    mode: read-only
+
+http:
+  name: http
+  addr: :3001
+  keyFile: ""
+  certFile: ""
+  cors:
+    enable: true
+    allowOrigins: []
+    allowMethods: []
+    allowHeaders: []
+    allowCredentials: false
+    exposeHeaders: []
+    maxAge: 0
+    allowPrivateNetwork: false
+  swagger:
+    enable: true
+    title: API服务(前端)文档
+    basePath: /swagger
+    filePath: ./docs/swagger.json
+
+log:
+    file: ./log/due.log
+    level: debug
+    format: text
+    stdout: true
+    timeFormat: 2006/01/02 15:04:05.000000
+    stackLevel: error
+    fileMaxAge: 7d
+    fileMaxSize: 100
+    fileCutRule: day
+    callerFullPath: true
+    classifiedStorage: false
+
+registry:
+    etcd:
+        addrs:
+            - 127.0.0.1:2379
+        dialTimeout: 5s
+        namespace: game-stack
+        timeout: 3s
+        retryTimes: 3
+        retryInterval: 10s
+
+etcd:
+  addrs:
+    - 127.0.0.1:2379
+  dialTimeout: 5s
+  path: /game-stack/config
+  mode: read-only
+  username:
+  password:
+
+redis:
+  default:
+    addrs:
+      - 127.0.0.1:6379
+    db: 0
+    username: ""
+    password: ""
+    maxRetries: 3
+    prefix: game-stack

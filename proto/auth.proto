@@ -14,6 +14,7 @@ enum AuthRoute {
     LOGOUT                  = 1003; // 登出
     TOKEN_REFRESH           = 1004; // 刷新token
     KICK                    = 1005; // 踢出
+    TOKEN_LOGIN             = 1006; // token登录长连接
 }
 
 // ==== 错误码 ====
@@ -39,16 +40,30 @@ enum AuthError {
 message LoginRequest {
     string username = 1; // 账号名
     string password = 2; // 密码
+    int64 game_id = 3; // 游戏id
 }
 
 message LoginResponse {
     int32  code         = 1; // 错误码，0 表示成功
     string message      = 2; // 错误描述
-    string token        = 3; // token
+    string token        = 3; // 登录令牌
     int64  expires_at   = 4; // token过期时间
     int64  player_id    = 5; // 玩家id
     bool   is_new_player = 6; // 首次登录
     int64  unix_nano     = 7; // 服务器时间戳，纳秒
+}
+
+// TOKEN_LOGIN
+message TokenLoginRequest {
+    string token = 1; // 短连接登录获得的token
+}
+
+message TokenLoginResponse {
+    int32  code       = 1; // 错误码，0 表示成功
+    string message    = 2; // 错误描述
+    int64  player_id  = 3; // 玩家id
+    int64  expires_at = 4; // token过期时间
+    int64  unix_nano  = 5; // 服务器时间戳，纳秒
 }
 
 // REGISTER
@@ -68,14 +83,14 @@ message LogoutRequest {}
 
 // TOKEN_REFRESH
 message TokenRefreshRequest {
-    string token = 1;
+    string token = 1; // 原登录令牌
 }
 
 message TokenRefreshResponse {
     int32  code       = 1; // 错误码，0 表示成功
     string message    = 2; // 错误描述
-    string token      = 3;
-    int64  expires_at = 4;
+    string token      = 3; // 新登录令牌
+    int64  expires_at = 4; // token过期时间
 }
 
 // KICK
@@ -85,5 +100,5 @@ enum KickReason {
 }
 
 message KickResponse {
-    KickReason reason = 1;
+    KickReason reason = 1; // 踢出原因
 }

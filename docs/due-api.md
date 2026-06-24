@@ -1,4 +1,4 @@
-# Due v2.5.5 API 参考
+# Due v2.5.8 API 参考
 
 ## 应用启动流程
 
@@ -62,24 +62,29 @@ Node 的 `Proxy` 提供了多种跨节点通信方式：
 
 ### gRPC 服务调用 (Service Provider / Mesh Client)
 
-模块在 `Init` 中注册 gRPC 服务，其他节点通过 Mesh Client 直连调用。规范示例：`module/player/grpc/server.go`。
+模块在 `Init` 中通过 `module/<name>/rpc/server` 注册 gRPC 服务，其他节点通过 `module/<name>/rpc/client` 创建 Mesh Client 调用。规范示例：`module/player/rpc/server/server.go` 和 `module/player/rpc/client/client.go`。
 
 **服务端：**
 
 ```go
 // 在 Init 中调用
-grpc.Register(name, proxy, repo)
+rpcserver.Register(name, proxy, repo)
 ```
 
 **调用方 — 两种模式：**
 
 ```go
+import (
+    playerrpc "github.com/skeletongo/game-stack/module/player/rpc/client"
+    playerpb "github.com/skeletongo/game-stack/module/player/rpc/grpc"
+)
+
 // 无状态调用（服务发现，随机节点）
-client, _ := player.NewClient(proxy)
+client, _ := playerrpc.New(proxy)
 resp, _ := client.GetPlayer(ctx, &playerpb.GetPlayerReq{Uid: uid})
 
 // 面向玩家调用（定位到玩家所在节点，访问内存数据）
-client, _ := player.NewClientForPlayer(proxy, uid)
+client, _ := playerrpc.NewWithUID(ctx, proxy, proxy.GetName(), uid)
 resp, _ := client.GetPlayer(ctx, &playerpb.GetPlayerReq{Uid: uid})
 ```
 
@@ -103,7 +108,7 @@ proxy.AddRouteHandler(route, handler, node.InternalRoute)
 
 ## 框架依赖
 
-核心模块：`github.com/dobyte/due/v2`（v2.5.5，所有 cluster/ 包在此模块下）
+核心模块：`github.com/dobyte/due/v2`（v2.5.8，所有 cluster/ 包在此模块下）
 
 子模块（独立版本管理，使用 `@main`）：
 
@@ -116,4 +121,4 @@ proxy.AddRouteHandler(route, handler, node.InternalRoute)
 | `due/eventbus/redis/v2` | Redis 事件总线 |
 | `due/component/http/v2` | HTTP 组件 |
 
-注意：v2.5.5 中不存在 `due/v2/cluster/master`（v2.2.3 之后已移除）。无状态服务请使用 `cluster/mesh`。
+注意：v2.5.8 中不存在 `due/v2/cluster/master`（v2.2.3 之后已移除）。无状态服务请使用 `cluster/mesh`。

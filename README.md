@@ -1,6 +1,6 @@
 # game-stack
 
-基于 [due](https://github.com/dobyte/due) v2.5.5 封装的分布式游戏服务端框架，开箱即用。
+基于 [due](https://github.com/dobyte/due) v2.5.8 封装的分布式游戏服务端框架，开箱即用。
 
 ## 快速开始
 
@@ -40,7 +40,7 @@ docs/       设计文档
 ## 后续计划
 
 ### 特性
- 
+
 - [ ] 滚动更新
 - [ ] 分布式事务
 

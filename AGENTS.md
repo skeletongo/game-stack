@@ -2,9 +2,16 @@
 
 本文件为 AI Agent 在此仓库中工作时提供指导。
 
+代码注释使用中文
+绝对不要删跟本次任务无关的注释
+新增代码必须加注释，简要说明方法或字段含义
+请求响应结构体每个字段必须要加中文注释
+proto文件请求响应接口每个字段和rpc方法必须加中文注释
+不确定的逻辑主动提问
+
 ## 项目概述
 
-`game-stack` 是一个分布式游戏服务器框架，基于 **due v2.5.5**（`github.com/dobyte/due/v2`）构建。采用 DDD（领域驱动设计）分层架构，将 due 的基础组件封装为可插拔的模块系统。
+`game-stack` 是一个分布式游戏服务器框架，基于 **due v2.5.8**（`github.com/dobyte/due/v2`）构建。采用 DDD（领域驱动设计）分层架构，将 due 的基础组件封装为可插拔的模块系统。
 
 ## 构建与验证
 
@@ -32,7 +39,7 @@ example/     → 示例项目（gate + server + test client）
 
 ## 模块开发（DDD 四层架构）
 
-每个模块按 4 层组织，四层代码放在 `internal/` 子目录（Go 编译器边界），对外接口放在 `svc/`。以 `module/player/` 或 `module/auth/` 为规范示例：
+每个模块按 4 层组织，四层代码放在 `internal/` 子目录（Go 编译器边界），对外接口放在 `svc/`，RPC 适配放在顶层 `rpc/`。以 `module/player/` 或 `module/auth/` 为规范示例：
 
 ```
 module/<name>/
@@ -51,16 +58,19 @@ module/<name>/
 │   │   └── repo_memory.go # 内存仓储实现
 │   ├── interface/         # 接口层（最薄层）
 │   │   └── routes.go      # 路由处理器
-│   ├── rpc/               # RPC 适配（如有）
-│   │   └── server.go
-│   └── svc/               # 跨模块 Service 实现
+├── <name>.proto           # RPC proto 定义（如有）
+├── svc/                   # 对外接口和跨模块 Service
+│   ├── interface.go       # IXxx + DTO
+│   └── server/            # Service 实现
 │       └── server.go      # 实现 svc.IXxx 接口
-├── svc/                   # 对外接口定义
-│   └── interface.go       # IXxx + DTO
-├── grpc/                  # proto 生成代码（如有）
-│   ├── player.proto
-│   ├── player.pb.go
-│   └── player_grpc.pb.go
+├── rpc/                   # RPC 适配（如有）
+│   ├── client/            # RPC 客户端
+│   │   └── client.go
+│   ├── server/            # RPC 服务端
+│   │   └── server.go
+│   └── grpc/              # proto 生成代码
+│       ├── <name>.pb.go
+│       └── <name>_grpc.pb.go
 ├── module.go              # Module 构造函数 + 依赖注入装配
 └── option.go              # 函数式选项（WithRepository）
 ```
@@ -122,13 +132,13 @@ stack.ProtoResponse(ctx, &auth.LoginResponse{Code: stack.ErrCode(err), Message: 
 - **RouteToActor** 不检查归属权：due 的 StatefulRoute 已保证消息投递到正确节点
 - **InvokePlayer** 检查归属权，fire-and-forget 异步执行
 - **InvokePlayerSync** 同步执行并返回结果，用于跨模块 Service 调用
-- **RPC 放在子包**：`module/player/internal/rpc/`，调用 `rpcserver.Register(name, proxy, repo)`
+- **RPC 放在顶层 rpc 子包**：`module/player/rpc/server/` 注册服务端，`module/player/rpc/client/` 创建客户端
 - **Debug 默认关闭**：`stack.WithDebug(":6060")` 启用，模块一行 `debug.Register[*Player]("player", repo, cmdBus)` 注册
 - **玩家节点归属稳定**：普通断线不解绑节点；已有节点归属只由显式玩家迁移流程修改
 
 ## 参考文档
 
-- `docs/due-api.md` — Due v2.5.5 API 参考
+- `docs/due-api.md` — Due v2.5.8 API 参考
 - `docs/DDD设计文档.md` — DDD 战略设计（子域/BC/上下文映射）+ 战术设计 + Actor 与聚合关系
 - `docs/模块开发规范.md` — DDD 四层架构 + module.go 模板 + 路由模式 + 添加新模块流程
 - `docs/store设计.md` — 仓储接口设计、实现约束（删除幂等、查询重加载）

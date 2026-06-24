@@ -23,7 +23,7 @@ const (
 
 type GetPlayerReq struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Uid           int64                  `protobuf:"varint,1,opt,name=uid,proto3" json:"uid,omitempty"`
+	Uid           int64                  `protobuf:"varint,1,opt,name=uid,proto3" json:"uid,omitempty"` // 用户id
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -67,14 +67,14 @@ func (x *GetPlayerReq) GetUid() int64 {
 
 type GetPlayerResp struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Uid           int64                  `protobuf:"varint,1,opt,name=uid,proto3" json:"uid,omitempty"`
-	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	Level         int32                  `protobuf:"varint,3,opt,name=level,proto3" json:"level,omitempty"`
-	Exp           int64                  `protobuf:"varint,4,opt,name=exp,proto3" json:"exp,omitempty"`
-	Gold          int32                  `protobuf:"varint,5,opt,name=gold,proto3" json:"gold,omitempty"`
-	Diamond       int32                  `protobuf:"varint,6,opt,name=diamond,proto3" json:"diamond,omitempty"`
-	Avatar        string                 `protobuf:"bytes,7,opt,name=avatar,proto3" json:"avatar,omitempty"`
-	CreatedAt     int64                  `protobuf:"varint,8,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	Uid           int64                  `protobuf:"varint,1,opt,name=uid,proto3" json:"uid,omitempty"`                              // 用户id
+	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`                             // 玩家名
+	Level         int32                  `protobuf:"varint,3,opt,name=level,proto3" json:"level,omitempty"`                          // 等级
+	Exp           int64                  `protobuf:"varint,4,opt,name=exp,proto3" json:"exp,omitempty"`                              // 经验值
+	Gold          int32                  `protobuf:"varint,5,opt,name=gold,proto3" json:"gold,omitempty"`                            // 金币
+	Diamond       int32                  `protobuf:"varint,6,opt,name=diamond,proto3" json:"diamond,omitempty"`                      // 钻石
+	Avatar        string                 `protobuf:"bytes,7,opt,name=avatar,proto3" json:"avatar,omitempty"`                         // 头像
+	CreatedAt     int64                  `protobuf:"varint,8,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"` // 创建时间
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -189,10 +189,11 @@ var file_module_player_player_proto_rawDesc = string([]byte{
 	0x65, 0x72, 0x12, 0x14, 0x2e, 0x70, 0x6c, 0x61, 0x79, 0x65, 0x72, 0x2e, 0x47, 0x65, 0x74, 0x50,
 	0x6c, 0x61, 0x79, 0x65, 0x72, 0x52, 0x65, 0x71, 0x1a, 0x15, 0x2e, 0x70, 0x6c, 0x61, 0x79, 0x65,
 	0x72, 0x2e, 0x47, 0x65, 0x74, 0x50, 0x6c, 0x61, 0x79, 0x65, 0x72, 0x52, 0x65, 0x73, 0x70, 0x42,
-	0x35, 0x5a, 0x33, 0x67, 0x69, 0x74, 0x68, 0x75, 0x62, 0x2e, 0x63, 0x6f, 0x6d, 0x2f, 0x73, 0x6b,
+	0x39, 0x5a, 0x37, 0x67, 0x69, 0x74, 0x68, 0x75, 0x62, 0x2e, 0x63, 0x6f, 0x6d, 0x2f, 0x73, 0x6b,
 	0x65, 0x6c, 0x65, 0x74, 0x6f, 0x6e, 0x67, 0x6f, 0x2f, 0x67, 0x61, 0x6d, 0x65, 0x2d, 0x73, 0x74,
 	0x61, 0x63, 0x6b, 0x2f, 0x6d, 0x6f, 0x64, 0x75, 0x6c, 0x65, 0x2f, 0x70, 0x6c, 0x61, 0x79, 0x65,
-	0x72, 0x2f, 0x67, 0x72, 0x70, 0x63, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
+	0x72, 0x2f, 0x72, 0x70, 0x63, 0x2f, 0x67, 0x72, 0x70, 0x63, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74,
+	0x6f, 0x33,
 })
 
 var (

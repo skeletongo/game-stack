@@ -9,8 +9,8 @@ import (
 
 	"github.com/dobyte/due/v2/errors"
 	rawjwt "github.com/dobyte/jwt"
-	"github.com/skeletongo/game-stack/component/jwt"
 	"github.com/skeletongo/game-stack/ddd"
+	"github.com/skeletongo/game-stack/internal/component/jwt"
 	"github.com/skeletongo/game-stack/module/auth/internal/domain"
 	"github.com/skeletongo/game-stack/module/auth/internal/infrastructure"
 	"github.com/skeletongo/game-stack/stack"
@@ -84,7 +84,7 @@ func TestTokenLifecycle(t *testing.T) {
 	}
 
 	login := &LoginHandler{Repo: repo, EventBus: events, Jwt: jt}
-	loginResult, err := login.Handle(ctx, LoginCmd{Username: "alice", Password: "secret"})
+	loginResult, err := login.Handle(ctx, LoginCmd{Username: "alice", Password: "secret", GameID: 7})
 	if err != nil {
 		t.Fatalf("login failed: %v", err)
 	}
@@ -101,6 +101,21 @@ func TestTokenLifecycle(t *testing.T) {
 	if payload.Subject() != "1001" {
 		t.Fatalf("token subject = %q, want 1001", payload.Subject())
 	}
+	if got := payload[jwt.ClaimGameID]; fmt.Sprint(got) != "7" {
+		t.Fatalf("token game_id = %v, want 7", got)
+	}
+
+	tokenLogin := &TokenLoginHandler{Repo: repo, EventBus: events, Jwt: jt}
+	tokenLoginResult, err := tokenLogin.Handle(ctx, TokenLoginCmd{Token: loginResult.Token})
+	if err != nil {
+		t.Fatalf("token login failed: %v", err)
+	}
+	if tokenLoginResult.UserID != loginResult.UserID || tokenLoginResult.PlayerID != loginResult.PlayerID {
+		t.Fatalf("token login result mismatch: got %+v login %+v", tokenLoginResult, loginResult)
+	}
+	if tokenLoginResult.ExpiresAt != loginResult.ExpiresAt {
+		t.Fatalf("token login expires_at = %d, want %d", tokenLoginResult.ExpiresAt, loginResult.ExpiresAt)
+	}
 
 	time.Sleep(time.Millisecond)
 
@@ -115,6 +130,10 @@ func TestTokenLifecycle(t *testing.T) {
 	_, err = refresh.Handle(ctx, RefreshTokenCmd{UserID: loginResult.UserID, Token: loginResult.Token})
 	if !errors.Is(err, stack.ErrInvalidToken) {
 		t.Fatalf("refresh old token error = %v, want %v", err, stack.ErrInvalidToken)
+	}
+	_, err = tokenLogin.Handle(ctx, TokenLoginCmd{Token: loginResult.Token})
+	if !errors.Is(err, stack.ErrInvalidToken) {
+		t.Fatalf("token login old token error = %v, want %v", err, stack.ErrInvalidToken)
 	}
 
 	logout := &LogoutHandler{Repo: repo, EventBus: events, Jwt: jt}

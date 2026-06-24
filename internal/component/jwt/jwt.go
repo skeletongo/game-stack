@@ -79,3 +79,8 @@ func NewInstance[T string | Config | *Config](config T) *JWT {
 
 	return jt
 }
+
+// 自定义 JWT 载荷键。
+const (
+	ClaimGameID = "gmid" // 游戏id
+)

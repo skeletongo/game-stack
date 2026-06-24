@@ -139,14 +139,14 @@ func (PlayerError) EnumDescriptor() ([]byte, []int) {
 // PlayerInfo 玩家基本信息。
 type PlayerInfo struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
-	Nickname      string                 `protobuf:"bytes,2,opt,name=nickname,proto3" json:"nickname,omitempty"`
-	Level         int32                  `protobuf:"varint,3,opt,name=level,proto3" json:"level,omitempty"`
-	Exp           int64                  `protobuf:"varint,4,opt,name=exp,proto3" json:"exp,omitempty"`
-	Avatar        string                 `protobuf:"bytes,5,opt,name=avatar,proto3" json:"avatar,omitempty"`
-	Gold          int32                  `protobuf:"varint,6,opt,name=gold,proto3" json:"gold,omitempty"`
-	Diamond       int32                  `protobuf:"varint,7,opt,name=diamond,proto3" json:"diamond,omitempty"`
-	CreatedAt     int64                  `protobuf:"varint,8,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`                                // 玩家id
+	Nickname      string                 `protobuf:"bytes,2,opt,name=nickname,proto3" json:"nickname,omitempty"`                     // 昵称
+	Level         int32                  `protobuf:"varint,3,opt,name=level,proto3" json:"level,omitempty"`                          // 等级
+	Exp           int64                  `protobuf:"varint,4,opt,name=exp,proto3" json:"exp,omitempty"`                              // 经验值
+	Avatar        string                 `protobuf:"bytes,5,opt,name=avatar,proto3" json:"avatar,omitempty"`                         // 头像
+	Gold          int32                  `protobuf:"varint,6,opt,name=gold,proto3" json:"gold,omitempty"`                            // 金币
+	Diamond       int32                  `protobuf:"varint,7,opt,name=diamond,proto3" json:"diamond,omitempty"`                      // 钻石
+	CreatedAt     int64                  `protobuf:"varint,8,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"` // 创建时间
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -240,7 +240,7 @@ func (x *PlayerInfo) GetCreatedAt() int64 {
 // GetInfo 查询玩家信息。
 type GetInfoRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	PlayerId      int64                  `protobuf:"varint,1,opt,name=player_id,json=playerId,proto3" json:"player_id,omitempty"`
+	PlayerId      int64                  `protobuf:"varint,1,opt,name=player_id,json=playerId,proto3" json:"player_id,omitempty"` // 玩家id
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -286,7 +286,7 @@ type GetInfoResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Code          int32                  `protobuf:"varint,1,opt,name=code,proto3" json:"code,omitempty"`      // 错误码，0 表示成功
 	Message       string                 `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"` // 错误描述
-	Player        *PlayerInfo            `protobuf:"bytes,3,opt,name=player,proto3" json:"player,omitempty"`
+	Player        *PlayerInfo            `protobuf:"bytes,3,opt,name=player,proto3" json:"player,omitempty"`   // 玩家信息
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -345,7 +345,7 @@ func (x *GetInfoResponse) GetPlayer() *PlayerInfo {
 // SetAvatar 设置头像。
 type SetAvatarRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Avatar        string                 `protobuf:"bytes,1,opt,name=avatar,proto3" json:"avatar,omitempty"`
+	Avatar        string                 `protobuf:"bytes,1,opt,name=avatar,proto3" json:"avatar,omitempty"` // 头像
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -443,9 +443,9 @@ func (x *SetAvatarResponse) GetMessage() string {
 // LevelUpEvent 升级推送（服务器主动下推）。
 type LevelUpEvent struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	OldLevel      int32                  `protobuf:"varint,1,opt,name=old_level,json=oldLevel,proto3" json:"old_level,omitempty"`
-	NewLevel      int32                  `protobuf:"varint,2,opt,name=new_level,json=newLevel,proto3" json:"new_level,omitempty"`
-	ExpGain       int64                  `protobuf:"varint,3,opt,name=exp_gain,json=expGain,proto3" json:"exp_gain,omitempty"`
+	OldLevel      int32                  `protobuf:"varint,1,opt,name=old_level,json=oldLevel,proto3" json:"old_level,omitempty"` // 原等级
+	NewLevel      int32                  `protobuf:"varint,2,opt,name=new_level,json=newLevel,proto3" json:"new_level,omitempty"` // 新等级
+	ExpGain       int64                  `protobuf:"varint,3,opt,name=exp_gain,json=expGain,proto3" json:"exp_gain,omitempty"`    // 增加经验
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }

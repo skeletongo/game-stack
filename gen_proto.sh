@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # 生成所有模块的 proto 代码（player.pb.go / player_grpc.pb.go 等）。
 # proto/*.proto → 生成到 proto/<name>/ 子目录（与 .proto 源文件分离）
-# module/*/grpc/*.proto → 生成到同目录（与 .proto 同级）
+# module/*/*.proto → 按 go_package 生成到 module/<name>/rpc/grpc 等目录
 # 使用方法：bash gen_proto.sh
 set -euo pipefail
 

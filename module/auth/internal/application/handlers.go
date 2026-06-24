@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/dobyte/due/v2/log"
+	"github.com/dobyte/due/v2/utils/xconv"
 	dobytejwt "github.com/dobyte/jwt"
 
 	"github.com/skeletongo/game-stack/ddd"
@@ -14,6 +15,7 @@ import (
 	"github.com/skeletongo/game-stack/stack"
 )
 
+// PlayerRegistrar 定义 auth 注册流程依赖的玩家创建接口。
 type PlayerRegistrar interface {
 	CreatePlayer(ctx context.Context, id int64, nickname string) error
 	DeletePlayer(ctx context.Context, id int64) error
@@ -21,15 +23,15 @@ type PlayerRegistrar interface {
 
 // RegisterHandler 处理注册命令。
 type RegisterHandler struct {
-	Repo     domain.AccountRepository
-	EventBus *ddd.EventBus
-	Players  PlayerRegistrar
+	Repo     domain.AccountRepository // 账号仓储
+	EventBus *ddd.EventBus            // 领域事件总线
+	Players  PlayerRegistrar          // 玩家注册服务
 }
 
 // RegisterResult 注册命令的返回结果。
 type RegisterResult struct {
-	UserID   int64
-	PlayerID int64
+	UserID   int64 // 用户id
+	PlayerID int64 // 玩家id
 }
 
 // Handle 执行注册：校验用户名唯一、创建账户、生成令牌、发布事件。
@@ -57,18 +59,18 @@ func (h *RegisterHandler) Handle(ctx context.Context, cmd RegisterCmd) (*Registe
 
 // LoginHandler 处理登录命令。
 type LoginHandler struct {
-	Repo     domain.AccountRepository
-	EventBus *ddd.EventBus
-	Jwt      *jwt.JWT
+	Repo     domain.AccountRepository // 账号仓储
+	EventBus *ddd.EventBus            // 领域事件总线
+	Jwt      *jwt.JWT                 // JWT 组件
 }
 
 // LoginResult 登录命令的返回结果。
 type LoginResult struct {
-	UserID    int64
-	PlayerID  int64
-	Token     string
-	ExpiresAt int64
-	Nickname  string
+	UserID    int64  // 用户id
+	PlayerID  int64  // 玩家id
+	Token     string // 登录令牌
+	ExpiresAt int64  // token过期时间
+	Nickname  string // 昵称
 }
 
 // Handle 执行登录：查找账户、验证密码和封禁状态、生成令牌、发布事件。
@@ -83,7 +85,7 @@ func (h *LoginHandler) Handle(ctx context.Context, cmd LoginCmd) (*LoginResult, 
 	if !account.VerifyPassword(cmd.Password) {
 		return nil, stack.ErrWrongPassword
 	}
-	token, err := h.Jwt.GenerateToken(strconv.FormatInt(account.ID(), 10))
+	token, err := h.Jwt.GenerateToken(xconv.String(account.ID()), jwt.Payload{jwt.ClaimGameID: cmd.GameID})
 	if err != nil {
 		return nil, stack.ErrInternalError
 	}
@@ -98,11 +100,51 @@ func (h *LoginHandler) Handle(ctx context.Context, cmd LoginCmd) (*LoginResult, 
 	}, nil
 }
 
+// TokenLoginHandler 处理 token 登录长连接命令。
+type TokenLoginHandler struct {
+	Repo     domain.AccountRepository // 账号仓储
+	EventBus *ddd.EventBus            // 领域事件总线
+	Jwt      *jwt.JWT                 // JWT 组件
+}
+
+// TokenLoginResult token 登录长连接的返回结果。
+type TokenLoginResult struct {
+	UserID    int64 // 用户id
+	PlayerID  int64 // 玩家id
+	ExpiresAt int64 // token过期时间
+}
+
+// Handle 执行 token 登录：验证 token、加载账户、检查封禁状态。
+func (h *TokenLoginHandler) Handle(ctx context.Context, cmd TokenLoginCmd) (*TokenLoginResult, error) {
+	payload, err := h.Jwt.ParseToken(cmd.Token)
+	if err != nil {
+		return nil, tokenError(err)
+	}
+	uid, err := strconv.ParseInt(payload.Subject(), 10, 64)
+	if err != nil || uid == 0 {
+		return nil, stack.ErrInvalidToken
+	}
+	account, err := h.Repo.Load(ctx, uid)
+	if err != nil {
+		return nil, stack.ErrInvalidToken
+	}
+	if account.IsBanned() {
+		return nil, stack.ErrAccountBanned
+	}
+	h.EventBus.Publish(domain.NewAccountLoggedIn(account.ID()))
+	log.Infof("[auth] token login verified: uid=%d player_id=%d", account.ID(), account.PlayerID())
+	return &TokenLoginResult{
+		UserID:    account.ID(),
+		PlayerID:  account.PlayerID(),
+		ExpiresAt: payload.Expired().Unix(),
+	}, nil
+}
+
 // LogoutHandler 处理登出命令。
 type LogoutHandler struct {
-	Repo     domain.AccountRepository
-	EventBus *ddd.EventBus
-	Jwt      *jwt.JWT
+	Repo     domain.AccountRepository // 账号仓储
+	EventBus *ddd.EventBus            // 领域事件总线
+	Jwt      *jwt.JWT                 // JWT 组件
 }
 
 // Handle 执行登出：清除账户的令牌，发布事件。
@@ -120,14 +162,14 @@ func (h *LogoutHandler) Handle(ctx context.Context, cmd LogoutCmd) (ddd.NoResult
 
 // RefreshTokenHandler 处理令牌刷新命令。
 type RefreshTokenHandler struct {
-	Repo domain.AccountRepository
-	Jwt  *jwt.JWT
+	Repo domain.AccountRepository // 账号仓储
+	Jwt  *jwt.JWT                 // JWT 组件
 }
 
 // RefreshTokenResult 令牌刷新的返回结果。
 type RefreshTokenResult struct {
-	Token     string
-	ExpiresAt int64
+	Token     string // 新登录令牌
+	ExpiresAt int64  // token过期时间
 }
 
 // Handle 执行令牌刷新：验证旧令牌并生成新令牌。

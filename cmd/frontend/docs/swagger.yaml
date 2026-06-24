@@ -1,0 +1,139 @@
+basePath: /
+definitions:
+  types.LoginReq:
+    properties:
+      game_id:
+        type: integer
+      password:
+        type: string
+      username:
+        type: string
+    type: object
+  types.LoginResp:
+    properties:
+      code:
+        type: integer
+      expires_at:
+        type: integer
+      is_new_player:
+        type: boolean
+      message:
+        type: string
+      player_id:
+        type: integer
+      token:
+        type: string
+      unix_nano:
+        type: integer
+    type: object
+  types.LogoutResp:
+    properties:
+      code:
+        type: integer
+      message:
+        type: string
+    type: object
+  types.RegisterReq:
+    properties:
+      nickname:
+        type: string
+      password:
+        type: string
+      username:
+        type: string
+    type: object
+  types.RegisterResp:
+    properties:
+      code:
+        type: integer
+      message:
+        type: string
+    type: object
+  types.TokenRefreshResp:
+    properties:
+      code:
+        type: integer
+      expires_at:
+        type: integer
+      message:
+        type: string
+      token:
+        type: string
+    type: object
+host: localhost:8080
+info:
+  contact: {}
+  title: API服文档
+  version: "1.0"
+paths:
+  /login:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 请求参数
+        in: body
+        name: data
+        required: true
+        schema:
+          $ref: '#/definitions/types.LoginReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/types.LoginResp'
+      summary: 登录
+      tags:
+      - AUTH
+  /register:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 请求参数
+        in: body
+        name: data
+        required: true
+        schema:
+          $ref: '#/definitions/types.RegisterReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/types.RegisterResp'
+      summary: 注册
+      tags:
+      - AUTH
+  /user/logout:
+    post:
+      consumes:
+      - application/json
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/types.LogoutResp'
+      summary: 登出
+      tags:
+      - AUTH
+  /user/token_refresh:
+    post:
+      consumes:
+      - application/json
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/types.TokenRefreshResp'
+      summary: 刷新token
+      tags:
+      - AUTH
+swagger: "2.0"
