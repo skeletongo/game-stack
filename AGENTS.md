@@ -59,12 +59,12 @@ module/<name>/
 │   │   └── repo_memory.go # 内存仓储实现
 │   ├── interface/         # 接口层（最薄层）
 │   │   └── routes.go      # 路由处理器
-├── <name>.proto           # RPC proto 定义（如有）
 ├── svc/                   # 对外接口和跨模块 Service
 │   ├── interface.go       # IXxx + DTO
 │   └── server/            # Service 实现
 │       └── server.go      # 实现 svc.IXxx 接口
 ├── rpc/                   # RPC 适配（如有）
+│   ├── <name>.proto       # RPC proto 定义（如有）
 │   ├── client/            # RPC 客户端
 │   │   └── client.go
 │   ├── server/            # RPC 服务端

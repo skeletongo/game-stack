@@ -366,12 +366,12 @@ module/player/
 │   │   └── repo_redis.go      # Redis 仓储实现（可选）
 │   ├── interface/             # 接口层
 │   │   └── routes.go          # 路由处理器（薄层，解析 proto → 构建 Command → 投递）
-├── player.proto               # RPC proto 定义（如有）
 ├── svc/                       # 对外接口和跨模块 Service
 │   ├── interface.go           # IPlayer + Player DTO
 │   └── server/                # 跨模块 Service 实现
 │       └── server.go          # 实现 svc.IPlayer 接口
 ├── rpc/                       # RPC 适配（如有）
+│   ├── player.proto           # RPC proto 定义（如有）
 │   ├── client/                # RPC 客户端
 │   │   └── client.go
 │   ├── server/                # RPC 服务端
@@ -502,7 +502,7 @@ newExp, err := actor.InvokePlayerSync[int64](ctx, proxy, uid, func(ctx context.C
 10. **rpc/client + rpc/server** — RPC 客户端和服务端（如有）
 11. **module.go** — 装配依赖注入
 12. **注册到 cmd/node/main.go** — `stack.WithModules(xxx.Module())`
-13. **proto 定义** — 在 `proto/<name>/` 和 `stack/route.go` 中添加路由/错误码
+13. **proto 定义** — 客户端协议放在 `proto/`，模块 RPC 协议放在 `module/<name>/rpc/<name>.proto`
 
 ---
 
