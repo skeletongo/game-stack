@@ -39,8 +39,8 @@ func ModuleDir(root, name string) string { return filepath.Join(root, "module", 
 // ProtocolDir 返回指定模块协议包的绝对路径。
 func ProtocolDir(root, name string) string { return filepath.Join(root, "protocol", name) }
 
-// CmdNodeMain 返回 cmd/node/main.go 的绝对路径。
-func CmdNodeMain(root string) string { return filepath.Join(root, "cmd", "node", "main.go") }
+// CmdHallMain 返回 cmd/hall/main.go 的绝对路径。
+func CmdHallMain(root string) string { return filepath.Join(root, "cmd", "hall", "main.go") }
 
 // RouteGo 返回 stack/route.go 的绝对路径。
 func RouteGo(root string) string { return filepath.Join(root, "stack", "route.go") }

@@ -102,7 +102,7 @@ func appendGoConst(path, blockMarker, newConst string) error {
 	return os.WriteFile(path, []byte(newContent), 0644)
 }
 
-// appendGoModuleRun 在 cmd/node/main.go 的 WithModules() 中追加新模块。
+// appendGoModuleRun 在 cmd/hall/main.go 的 WithModules() 中追加新模块。
 func appendGoModuleRun(path, moduleName string) error {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -127,9 +127,9 @@ func appendGoModuleRun(path, moduleName string) error {
 	return os.WriteFile(path, []byte(newContent), 0644)
 }
 
-// addGoImportToMain 在 cmd/node/main.go 的 import 块中追加模块 import。
+// addGoImportToMain 在 cmd/hall/main.go 的 import 块中追加模块 import。
 func addGoImportToMain(modulePath string) error {
-	return addGoImport("cmd/node/main.go", fmt.Sprintf(`"%s"`, modulePath))
+	return addGoImport("cmd/hall/main.go", fmt.Sprintf(`"%s"`, modulePath))
 }
 
 // runProtoc 运行 protoc 生成 proto 代码。

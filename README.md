@@ -14,8 +14,8 @@ docker compose -f docker/docker-compose.yaml up -d
 # 启动网关（WebSocket）
 go run cmd/gate/main.go
 
-# 启动逻辑服
-go run cmd/node/main.go
+# 启动大厅逻辑服
+go run cmd/hall/main.go
 ```
 
 ## 设计要点
@@ -30,7 +30,7 @@ go run cmd/node/main.go
 
 ```
 ddd/        DDD 领域驱动设计建模工具
-cmd/        入口点（gate、node）
+cmd/        入口点（gate、hall、frontend、backend、gsc）
 stack/      核心框架：应用启动、路由、错误码、Module 接口、中间件、debug 调试服务
 module/     可插拔游戏模块（actor / auth / clean / player）
 proto/      客户端通信协议（protobuf，客户端与服务端共用）

@@ -501,7 +501,7 @@ newExp, err := actor.InvokePlayerSync[int64](ctx, proxy, uid, func(ctx context.C
 9. **svc/server** — 实现 `svc/` 中的接口
 10. **rpc/client + rpc/server** — RPC 客户端和服务端（如有）
 11. **module.go** — 装配依赖注入
-12. **注册到 cmd/node/main.go** — `stack.WithModules(xxx.Module())`
+12. **注册到 cmd/hall/main.go** — `stack.WithModules(xxx.Module())`
 13. **proto 定义** — 客户端协议放在 `proto/`，模块 RPC 协议放在 `module/<name>/rpc/<name>.proto`
 
 ---

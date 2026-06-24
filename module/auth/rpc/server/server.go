@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/dobyte/due/v2/cluster/node"
+
 	"github.com/skeletongo/game-stack/ddd"
 	"github.com/skeletongo/game-stack/module/auth/internal/application"
 	pb "github.com/skeletongo/game-stack/module/auth/rpc/grpc"

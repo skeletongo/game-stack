@@ -208,7 +208,7 @@ func Dispatch[T any](ctx context.Context, bus *CommandBus, cmd Command) (T, erro
 ## 启用
 
 ```go
-// cmd/node/main.go
+// cmd/hall/main.go
 app := stack.NewApplication(
     stack.WithDebug("127.0.0.1:6060"),
     // ...

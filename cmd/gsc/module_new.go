@@ -143,9 +143,9 @@ func addErrCodeSection(name, nameTitle string, modNum int) {
 	fmt.Println("  更新 stack/errcode.go")
 }
 
-// addModuleToMain 在 cmd/node/main.go 中添加模块 import 和 WithModules 条目。
+// addModuleToMain 在 cmd/hall/main.go 中添加模块 import 和 WithModules 条目。
 func addModuleToMain(name string) {
-	data, _ := os.ReadFile("cmd/node/main.go")
+	data, _ := os.ReadFile("cmd/hall/main.go")
 	content := string(data)
 
 	ip := fmt.Sprintf(`"github.com/skeletongo/game-stack/module/%s"`, name)
@@ -159,8 +159,8 @@ func addModuleToMain(name string) {
 	line := fmt.Sprintf("\t\t%s.Module(),", name)
 	content = content[:close] + "\n" + line + content[close:]
 
-	os.WriteFile("cmd/node/main.go", []byte(content), 0644)
-	fmt.Println("  更新 cmd/node/main.go")
+	os.WriteFile("cmd/hall/main.go", []byte(content), 0644)
+	fmt.Println("  更新 cmd/hall/main.go")
 }
 
 // ==== 6 文件模板 ====

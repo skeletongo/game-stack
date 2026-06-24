@@ -9,12 +9,12 @@ import (
 	"strings"
 )
 
-// ParseNodeMain 解析 cmd/node/main.go，返回：
+// ParseHallMain 解析 cmd/hall/main.go，返回：
 // - imports: 已导入的 game-stack module 包路径列表
 // - moduleArgs: WithModules() 调用中已有的模块参数名列表
 // - withModLine: WithModules 调用的结束括号行号 (1-based)
 // - lastImportLine: 最后一个 game-stack module import 所在行号
-func ParseNodeMain(path string) (imports []string, moduleArgs []string, withModLine int, lastImportLine int, err error) {
+func ParseHallMain(path string) (imports []string, moduleArgs []string, withModLine int, lastImportLine int, err error) {
 	fset := token.NewFileSet()
 	f, err := parser.ParseFile(fset, path, nil, parser.ParseComments)
 	if err != nil {
