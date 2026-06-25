@@ -1,6 +1,7 @@
 package stack
 
 import (
+	"maps"
 	"time"
 
 	"github.com/dobyte/due/v2/crypto"
@@ -8,6 +9,7 @@ import (
 	"github.com/dobyte/due/v2/locate"
 	"github.com/dobyte/due/v2/registry"
 	"github.com/dobyte/due/v2/transport"
+	"github.com/dobyte/due/v2/utils/xtime"
 )
 
 // appOptions 应用配置选项。
@@ -35,6 +37,7 @@ func defaultAppOptions() *appOptions {
 		callTimeout: 3 * time.Second,
 		dialTimeout: 3 * time.Second,
 		weight:      100,
+		metadata:    map[string]string{"start_time": xtime.Now().Format(xtime.RFC3339)},
 	}
 }
 
@@ -103,7 +106,14 @@ func WithWeight(w int) AppOption {
 
 // WithMetadata 设置元数据。
 func WithMetadata(m map[string]string) AppOption {
-	return func(o *appOptions) { o.metadata = m }
+	return func(o *appOptions) {
+		if o.metadata == nil {
+			o.metadata = make(map[string]string)
+		}
+		if len(m) > 0 {
+			maps.Copy(o.metadata, m)
+		}
+	}
 }
 
 // WithModules 设置要加载的游戏模块列表。

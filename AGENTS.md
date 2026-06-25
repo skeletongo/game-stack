@@ -192,7 +192,7 @@ stack.ProtoResponse(ctx, &auth.LoginResponse{Code: stack.ErrCode(err), Message: 
 ## 关键设计决策
 
 - **Actor 与聚合正交**：Actor 提供物理串行化，Aggregate 提供逻辑不变量
-- **RouteToActor** 不检查归属权：due 的 StatefulRoute 已保证消息投递到正确节点
+- **RouteToActor** 普通路径依赖 StatefulRoute 定位；Hall 迁移期间需叠加 owner/epoch 归属校验
 - **InvokePlayer** 检查归属权，fire-and-forget 异步执行
 - **InvokePlayerSync** 同步执行并返回结果，用于跨模块 Service 调用
 - **RPC 放在顶层 rpc 子包**：`module/player/rpc/server/` 注册服务端，`module/player/rpc/client/` 创建客户端
@@ -206,6 +206,7 @@ stack.ProtoResponse(ctx, &auth.LoginResponse{Code: stack.ErrCode(err), Message: 
 - `docs/模块开发规范.md` — DDD 四层架构 + module.go 模板 + 路由模式 + 添加新模块流程
 - `docs/store设计.md` — 仓储接口设计、实现约束（删除幂等、查询重加载）
 - `docs/debug调试服务设计.md` — Debug HTTP 服务设计
+- `docs/hall玩家迁移设计.md` — Hall 滚动更新、玩家迁移、状态转移和写一致性设计
 - `docs/客户端服务端通信协议设计.md` — 路由编号方案、错误码体系
 - `docs/用户绑定节点设计.md` — 玩家节点绑定、有状态/无状态路由、断线重连
 - `docs/用户数据并发修改安全设计.md` — Actor 串行化、RouteToActor/InvokePlayer、归属权校验
